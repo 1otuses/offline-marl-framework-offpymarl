@@ -1,28 +1,28 @@
 import numpy as np
 from pyglet.window import key
 
-# individual agent policy
+# 单个智能体策略
 class Policy(object):
     def __init__(self):
         pass
     def action(self, obs):
         raise NotImplementedError()
 
-# interactive policy based on keyboard input
-# hard-coded to deal only with movement, not communication
+# 基于键盘输入的交互策略
+# 硬编码只处理移动，而不处理通信
 class InteractivePolicy(Policy):
     def __init__(self, env, agent_index):
         super(InteractivePolicy, self).__init__()
         self.env = env
-        # hard-coded keyboard events
+        # 硬编码键盘事件
         self.move = [False for i in range(4)]
         self.comm = [False for i in range(env.world.dim_c)]
-        # register keyboard events with this environment's window
+        # 在此环境的窗口中注册键盘事件
         env.viewers[agent_index].window.on_key_press = self.key_press
         env.viewers[agent_index].window.on_key_release = self.key_release
 
     def action(self, obs):
-        # ignore observation and just act based on keyboard events
+        # 忽略观测并仅根据键盘事件采取动作
         if self.env.discrete_action_input:
             u = 0
             if self.move[0]: u = 1
@@ -30,7 +30,7 @@ class InteractivePolicy(Policy):
             if self.move[2]: u = 4
             if self.move[3]: u = 3
         else:
-            u = np.zeros(5) # 5-d because of no-move action
+            u = np.zeros(5) # 5-d 因为无移动动作
             if self.move[0]: u[1] += 1.0
             if self.move[1]: u[2] += 1.0
             if self.move[3]: u[3] += 1.0
@@ -39,7 +39,7 @@ class InteractivePolicy(Policy):
                 u[0] += 1.0
         return np.concatenate([u, np.zeros(self.env.world.dim_c)])
 
-    # keyboard event callbacks
+    # 键盘事件回调
     def key_press(self, k, mod):
         if k==key.LEFT:  self.move[0] = True
         if k==key.RIGHT: self.move[1] = True

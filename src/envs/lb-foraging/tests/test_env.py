@@ -100,13 +100,13 @@ def test_food_spawning_0():
         _ = env.reset()
 
         foods = [np.array(f) for f in zip(*env.field.nonzero())]
-        # we should have 2 foods
+        # 应有 2 个食物
         assert len(foods) == 2
 
-        #foods must not be within 2 steps of each other
+        #食物之间的距离不得在 2 步以内
         assert manhattan_distance(foods[0], foods[1]) > 2
 
-        # food cannot be placed in first or last col/row
+        # 食物不能放置在第一列或最后一行
         assert foods[0][0] not in [0, 7]
         assert foods[0][1] not in [0, 7]
         assert foods[1][0] not in [0, 7]
@@ -119,10 +119,10 @@ def test_food_spawning_1():
         _ = env.reset()
 
         foods = [np.array(f) for f in zip(*env.field.nonzero())]
-        # we should have 3 foods
+        # 应有 3 个食物
         assert len(foods) == 3
 
-        #foods must not be within 2 steps of each other
+        #食物之间的距离不得在 2 步以内
         assert manhattan_distance(foods[0], foods[1]) > 2
         assert manhattan_distance(foods[0], foods[2]) > 2
         assert manhattan_distance(foods[1], foods[2]) > 2

@@ -33,8 +33,8 @@ class HeuristicAgent(Agent):
 
 class H1(HeuristicAgent):
     """
-	H1 agent always goes to the closest food
-	"""
+    H1 智能体始终前往最近的食物。
+    """
 
     name = "H1"
 
@@ -56,8 +56,8 @@ class H1(HeuristicAgent):
 
 class H2(HeuristicAgent):
     """
-	H2 Agent goes to the one visible food which is closest to the centre of visible players
-	"""
+    H2 智能体前往最靠近可见玩家中心的可见食物。
+    """
 
     name = "H2"
 
@@ -82,8 +82,8 @@ class H2(HeuristicAgent):
 
 class H3(HeuristicAgent):
     """
-	H3 Agent always goes to the closest food with compatible level
-	"""
+    H3 智能体始终前往等级相匹配的最近食物。
+    """
 
     name = "H3"
 
@@ -106,9 +106,9 @@ class H3(HeuristicAgent):
 
 class H4(HeuristicAgent):
     """
-	H4 Agent goes to the one visible food which is closest to all visible players
-	 such that the sum of their and H4's level is sufficient to load the food
-	"""
+    H4 智能体前往离所有可见玩家最近的可见食物，且这些玩家与 H4 的
+    等级总和必须足以装载该食物。
+    """
 
     name = "H4"
 

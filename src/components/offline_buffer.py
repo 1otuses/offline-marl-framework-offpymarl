@@ -8,11 +8,11 @@ class OfflineDataBatch():
     def __init__(self, data, batch_size, max_seq_length, device='cpu') -> None:
         self.data = data
         self.batch_size = batch_size
-        self.max_seq_length = max_seq_length # None if taken all length
+        self.max_seq_length = max_seq_length # 若使用完整长度则为 None
         self.device = device
         for k, v in self.data.items():
             # (batch_size, T, n_agents, *shape)
-            # truncate here, interface directly in offlinebuffer
+            # 在此处截断，直接与 OfflineBuffer 对接
             self.data[k] = v[:, :max_seq_length].to(self.device)
     
     def __getitem__(self, item):
@@ -31,7 +31,7 @@ class OfflineDataBatch():
             device = self.device
         for k, v in self.data.items():
             self.data[k] = v.to(device)
-        self.device = device # update self.device
+        self.device = device # 更新 self.device
     
     def keys(self):
         return list(self.data.keys())
@@ -43,23 +43,23 @@ class OfflineDataBatch():
 
 
 ############## OfflineBuffer ##############
-class OfflineBufferH5(): # One Task
+class OfflineBufferH5(): # 单任务
     def __init__(self, args, map_name, quality,
-                 data_path='', # deepest folder
+                 data_path='', # 最深层目录
                  max_buffer_size=2000,
                  device='cpu',
                  shuffle=True) -> None:
         self.args = args
         self.base_data_folder = args.offline_data_folder
         self.map_name = map_name 
-        # map name is an abstract name, can be map_name in sc2/scenario_name in mpe
+        # 地图名称是一个抽象名称，可以是sc2中的map_name / mpe中的scenario_name
         self.quality = quality
-        # set data_path
+        # 设置数据路径
         if not isinstance(data_path, list) and os.path.exists(data_path):
             self.data_path_list = [data_path] 
         else:
             self.data_path_list = []
-            for i, quality_i in enumerate(quality.split("_")): # e.g. "medium_expert"
+            for i, quality_i in enumerate(quality.split("_")): # 例如 "medium_expert"
                 data_path_i = data_path[i] if isinstance(data_path, list) else data_path
                 self.data_path_list.append(self.get_data_path(map_name, quality_i, data_path_i))
 
@@ -70,7 +70,7 @@ class OfflineBufferH5(): # One Task
         #self.h5_paths = [os.path.join(self.data_path, f) for f in os.listdir(self.data_path)]
 
         self.max_buffer_size = 100000000 if max_buffer_size <= 0 else max_buffer_size
-        self.device = device # device does not work actually.
+        self.device = device # 设备实际上无法工作。
         self.shuffle = shuffle
         max_data_size_per_file = self.max_buffer_size//len(self.h5_paths)
         dataset = [self._read_data(self.h5_paths[i], max_data_size_per_file, shuffle) for i in range(len(self.h5_paths))]
@@ -81,7 +81,7 @@ class OfflineBufferH5(): # One Task
         self.buffer_size = self.data[self.keys[0]].shape[0]
 
         if shuffle:
-            # shuffle again
+            # 再次洗牌
             shuffled_idx = np.random.choice(self.buffer_size, self.buffer_size, replace=False)
             self.data = {k: v[shuffled_idx] for k, v in self.data.items()}
         
@@ -89,7 +89,7 @@ class OfflineBufferH5(): # One Task
     def get_data_path(self, map_name, quality, data_path):
         data_path = os.path.join(self.base_data_folder, self.args.env, map_name, quality, data_path)
         if all([".h5" not in f for f in os.listdir(data_path)]):
-            # automatically find a folder
+            # 自动查找文件夹
             existing_folders = [f for f in sorted(os.listdir(data_path)) if os.path.isdir(os.path.join(data_path, f))]
             assert len(existing_folders) > 0
             return os.path.join(data_path, existing_folders[-1])
@@ -145,7 +145,7 @@ class OfflineBufferH5(): # One Task
 
 class OfflineBuffer():
     def __init__(self, args, map_name, quality,
-                data_path='', # deepest folder
+                data_path='', # 最深层目录
                 max_buffer_size=2000,
                 device='cpu',
                 shuffle=True) -> None:
@@ -182,7 +182,7 @@ class DataSaver():
         os.makedirs(save_path, exist_ok=True)
     
     def append(self, data):
-        self.data_batch.append(data) # data \in OfflineDataBatch/EpisodeBatch
+        self.data_batch.append(data) # 数据 \OfflineDataBatch/EpisodeBatch
         self.cur_size += data[list(data.keys())[0]].shape[0]
         #if len(self.episode_batch) >= self.max_size:
         if self.cur_size >= self.max_size:
@@ -201,7 +201,7 @@ class DataSaver():
                 else:
                     data_dict[k].append(data[k])
                     
-        # concatenate e.g. [(x, T, n_agents, *shape), ...] -> [max_size, T, n_agents, *shape]
+        # 拼接示例：[(x, T, n_agents, *shape), ...] -> [max_size, T, n_agents, *shape]
         data_dict = {k: np.concatenate(v) for k, v in data_dict.items()}
         save_file = os.path.join(self.save_path, "part_{}.h5".format(self.part_cnt))
         with h5py.File(save_file, 'w') as file:

@@ -1,6 +1,6 @@
-# --- BC specific parameters ---
+# --- BC 具体参数 ---
 
-# use multinomial selector
+# 使用多项式选择器
 action_selector: "multinomial"
 epsilon_start: .5
 epsilon_finish: .01
@@ -10,14 +10,14 @@ runner: "episode"
 
 buffer_size: 5000
 
-# use the BC_Learner to train
+# 使用 BC_Learner 进行训练
 agent_output_type: "pi_logits"
 learner: "bc_learner"
 double_q: True
 mixer: 
 
 
-# agent type
+# 智能体类型
 agent: "rnn"
 
 # mac

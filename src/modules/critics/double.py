@@ -18,7 +18,7 @@ class DoubleCritic(nn.Module):
         self.fc1 = nn.Linear(self.input_dim, args.critic_hidden_dim)
         self.fc2 = nn.Linear(args.critic_hidden_dim, args.critic_hidden_dim)
         self.fc3 = nn.Linear(args.critic_hidden_dim, self.n_actions)
-        # TODO add optional params, whether dueling
+        # TODO 添加可选参数，是否决斗
         self.fc3_v = nn.Linear(args.critic_hidden_dim, 1)
 
         self.fc4 = nn.Linear(self.input_dim, args.critic_hidden_dim)
@@ -49,19 +49,19 @@ class DoubleCritic(nn.Module):
         max_t = batch.max_seq_length if t is None else 1
         ts = slice(None) if t is None else slice(t, t+1)
         inputs = []
-        # state, obs, action
+        # 状态、观测值、动作
         inputs.append(batch["state"][:, ts].unsqueeze(2).repeat(1, 1, self.n_agents, 1))
         inputs.append(batch["obs"][:, ts])
         inputs.append(th.eye(self.n_agents, device=self.args.device).unsqueeze(0).unsqueeze(0).expand(bs, max_t, -1, -1))
-        # TODO add optional params about action
+        # TODO 添加有关动作的可选参数
         inputs = th.cat([x.reshape(bs, max_t, self.n_agents, -1) for x in inputs], dim=-1)
         return inputs
     
     def _get_input_shape(self, scheme):
-        # state
+        # 状态
         input_shape = scheme["state"]["vshape"]
-        # observation
+        # 观测
         input_shape += scheme["obs"]["vshape"]
         input_shape += self.n_agents
-        # TODO add optional params about action
+        # TODO 添加有关动作的可选参数
         return input_shape

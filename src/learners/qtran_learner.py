@@ -26,13 +26,13 @@ class QLearner:
 
         self.optimiser = RMSprop(params=self.params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
-        # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
+        # 深度复制有点浪费（例如重复动作选择器），但应该适用于任何 MAC
         self.target_mac = copy.deepcopy(mac)
 
         self.log_stats_t = -self.args.learner_log_interval - 1
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        # Get the relevant quantities
+        # 获取相关张量
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
@@ -40,7 +40,7 @@ class QLearner:
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = batch["avail_actions"]
 
-        # Calculate estimated Q-Values
+        # 计算估计的 Q 值
         mac_out = []
         mac_hidden_states = []
         self.mac.init_hidden(batch.batch_size)
@@ -48,14 +48,14 @@ class QLearner:
             agent_outs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
             mac_hidden_states.append(self.mac.hidden_states)
-        mac_out = th.stack(mac_out, dim=1)  # Concat over time
+        mac_out = th.stack(mac_out, dim=1)  # 沿时间维拼接
         mac_hidden_states = th.stack(mac_hidden_states, dim=1)
         mac_hidden_states = mac_hidden_states.reshape(batch.batch_size, self.args.n_agents, batch.max_seq_length, -1).transpose(1,2) #btav
 
-        # Pick the Q-Values for the actions taken by each agent
-        chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
+        # 为每个智能体所采取的动作选择 Q 值
+        chosen_action_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # 移除最后一个维度
 
-        # Calculate the Q-Values necessary for the target
+        # 计算目标所需的 Q 值
         target_mac_out = []
         target_mac_hidden_states = []
         self.target_mac.init_hidden(batch.batch_size)
@@ -64,27 +64,27 @@ class QLearner:
             target_mac_out.append(target_agent_outs)
             target_mac_hidden_states.append(self.target_mac.hidden_states)
 
-        # We don't need the first timesteps Q-Value estimate for calculating targets
-        target_mac_out = th.stack(target_mac_out[:], dim=1)  # Concat across time
+        # 计算目标值时不需要首个时间步的 Q 值估计
+        target_mac_out = th.stack(target_mac_out[:], dim=1)  # 沿时间维拼接
         target_mac_hidden_states = th.stack(target_mac_hidden_states, dim=1)
         target_mac_hidden_states = target_mac_hidden_states.reshape(batch.batch_size, self.args.n_agents, batch.max_seq_length, -1).transpose(1,2) #btav
 
-        # Mask out unavailable actions
-        target_mac_out[avail_actions[:, :] == 0] = -9999999  # From OG deepmarl
+        # 屏蔽不可用的动作
+        target_mac_out[avail_actions[:, :] == 0] = -9999999  # 来自原始 DeepMARL 实现
         mac_out_maxs = mac_out.clone()
         mac_out_maxs[avail_actions == 0] = -9999999
 
-        # Best joint action computed by target agents
+        # 目标智能体计算出的最佳联合动作
         target_max_actions = target_mac_out.max(dim=3, keepdim=True)[1]
-        # Best joint-action computed by regular agents
+        # 由常规智能体计算出的最佳联合动作
         max_actions_qvals, max_actions_current = mac_out_maxs[:, :].max(dim=3, keepdim=True)
 
         if self.args.mixer == "qtran_base":
-            # -- TD Loss --
-            # Joint-action Q-Value estimates
+            # -- TD 损失 --
+            # 联合动作 Q 值估计
             joint_qs, vs = self.mixer(batch[:, :-1], mac_hidden_states[:,:-1])
 
-            # Need to argmax across the target agents' actions to compute target joint-action Q-Values
+            # 需要对目标智能体的动作进行 argmax 来计算目标联合动作 Q 值
             if self.args.double_q:
                 max_actions_current_ = th.zeros(size=(batch.batch_size, batch.max_seq_length, self.args.n_agents, self.args.n_actions), device=batch.device)
                 max_actions_current_onehot = max_actions_current_.scatter(3, max_actions_current[:, :], 1)
@@ -94,40 +94,40 @@ class QLearner:
                 max_actions_onehot = max_actions.scatter(3, target_max_actions[:, :], 1)
             target_joint_qs, target_vs = self.target_mixer(batch[:, 1:], hidden_states=target_mac_hidden_states[:,1:], actions=max_actions_onehot[:,1:])
 
-            # Td loss targets
+            # TD 损失目标
             td_targets = rewards.reshape(-1,1) + self.args.gamma * (1 - terminated.reshape(-1, 1)) * target_joint_qs
             td_error = (joint_qs - td_targets.detach())
             masked_td_error = td_error * mask.reshape(-1, 1)
             td_loss = (masked_td_error ** 2).sum() / mask.sum()
-            # -- TD Loss --
+            # -- TD 损失 --
 
-            # -- Opt Loss --
-            # Argmax across the current agents' actions
-            if not self.args.double_q: # Already computed if we're doing double Q-Learning
+            # -- 优化损失 --
+            # 当前智能体动作的 Argmax
+            if not self.args.double_q: # 已经计算出我们是否正在进行双 Q-Learning
                 max_actions_current_ = th.zeros(size=(batch.batch_size, batch.max_seq_length, self.args.n_agents, self.args.n_actions), device=batch.device )
                 max_actions_current_onehot = max_actions_current_.scatter(3, max_actions_current[:, :], 1)
-            max_joint_qs, _ = self.mixer(batch[:, :-1], mac_hidden_states[:,:-1], actions=max_actions_current_onehot[:,:-1]) # Don't use the target network and target agent max actions as per author's email
+            max_joint_qs, _ = self.mixer(batch[:, :-1], mac_hidden_states[:,:-1], actions=max_actions_current_onehot[:,:-1]) # 按照作者邮件说明，不使用目标网络及目标智能体选出的最大动作
 
             # max_actions_qvals = th.gather(mac_out[:, :-1], dim=3, index=max_actions_current[:,:-1])
             opt_error = max_actions_qvals[:,:-1].sum(dim=2).reshape(-1, 1) - max_joint_qs.detach() + vs
             masked_opt_error = opt_error * mask.reshape(-1, 1)
             opt_loss = (masked_opt_error ** 2).sum() / mask.sum()
-            # -- Opt Loss --
+            # -- 优化损失 --
 
-            # -- Nopt Loss --
+            # -- Nopt 损失 --
             # target_joint_qs, _ = self.target_mixer(batch[:, :-1])
-            nopt_values = chosen_action_qvals.sum(dim=2).reshape(-1, 1) - joint_qs.detach() + vs # Don't use target networks here either
+            nopt_values = chosen_action_qvals.sum(dim=2).reshape(-1, 1) - joint_qs.detach() + vs # 此处也不要使用目标网络
             nopt_error = nopt_values.clamp(max=0)
             masked_nopt_error = nopt_error * mask.reshape(-1, 1)
             nopt_loss = (masked_nopt_error ** 2).sum() / mask.sum()
-            # -- Nopt loss --
+            # -- Nopt 损失 --
 
         elif self.args.mixer == "qtran_alt":
             raise Exception("Not supported yet.")
 
         loss = td_loss + self.args.opt_loss * opt_loss + self.args.nopt_min_loss * nopt_loss
 
-        # Optimise
+        # 优化
         self.optimiser.zero_grad()
         loss.backward()
         grad_norm = th.nn.utils.clip_grad_norm_(self.params, self.args.grad_norm_clip)
@@ -173,7 +173,7 @@ class QLearner:
 
     def load_models(self, path):
         self.mac.load_models(path)
-        # Not quite right but I don't want to save target networks
+        # 不太正确，但我不想保存目标网络
         self.target_mac.load_models(path)
         if self.mixer is not None:
             self.mixer.load_state_dict(th.load("{}/mixer.th".format(path), map_location=lambda storage, loc: storage))

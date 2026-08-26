@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install SC2 and add the custom maps
+# 安装 SC2 并添加自定义地图
 
 if [ -z "$EXP_DIR" ]
 then
@@ -24,7 +24,7 @@ else
         echo 'StarCraftII is already installed.'
 fi
 
-# select verision of SC2
+# 选择 SC2 版本
 #if [ ! -d $SC2PATH ]; then
 #        echo 'StarCraftII is not installed. Installing now ...';
 #        wget http://blzdistsc2-a.akamaihd.net/Linux/SC2.4.10.zip

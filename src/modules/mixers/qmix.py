@@ -30,35 +30,35 @@ class QMixer(nn.Module):
         else:
             raise Exception("Error setting number of hypernet layers.")
 
-        # State dependent bias for hidden layer
+        # 隐藏层的状态依赖偏差
         self.hyper_b_1 = nn.Linear(self.state_dim, self.embed_dim)
 
-        # V(s) instead of a bias for the last layers
+        # V(s) 而不是最后一层的偏差
         self.V = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
                                nn.ReLU(),
                                nn.Linear(self.embed_dim, 1))
 
 
     def forward(self, agent_qs, states, decomposer=None):
-        # decomposer for compatibility of mto
+        # 用于兼容 MTO 的分解器
         assert "icq" not in self.args.name
         bs = agent_qs.size(0)
         states = states.reshape(-1, self.state_dim)
         agent_qs = agent_qs.view(-1, 1, self.n_agents)
-        # First layer
+        # 第一层
         w1 = th.abs(self.hyper_w_1(states))
         b1 = self.hyper_b_1(states)
         w1 = w1.view(-1, self.n_agents, self.embed_dim)
         b1 = b1.view(-1, 1, self.embed_dim)
         hidden = F.elu(th.bmm(agent_qs, w1) + b1)
-        # Second layer
+        # 第二层
         w_final = th.abs(self.hyper_w_final(states))
         w_final = w_final.view(-1, self.embed_dim, 1)
-        # State-dependent bias
+        # 依赖状态的偏置
         v = self.V(states).view(-1, 1, 1)
-        # Compute final output
+        # 计算最终输出
         y = th.bmm(hidden, w_final) + v
-        # Reshape and return
+        # 重整形并返回
         q_tot = y.view(bs, -1, 1)
         return q_tot
 
@@ -86,14 +86,14 @@ class QMixer(nn.Module):
         states = states.reshape(-1, self.state_dim)
         agent_qs = agent_qs.view(-1, 1, self.n_agents)
 
-        # First layer
+        # 第一层
         w1 = th.abs(self.hyper_w_1(states))
         #b1 = self.hyper_b_1(states)
         w1 = w1.view(-1, self.n_agents, self.embed_dim)
         w_final = th.abs(self.hyper_w_final(states))
         w_final = w_final.view(-1, self.embed_dim, 1)
 
-        # Compute final output
+        # 计算最终输出
         k = th.bmm(w1, w_final)
         k = k / th.sum(k, dim=1, keepdim=True) # (bs*seq_len, n_agents, 1)
 

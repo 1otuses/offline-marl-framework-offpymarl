@@ -1,9 +1,9 @@
-# --- ITD3+BC specific parameters ---
+# --- ITD3+BC 具体参数 ---
 
 runner: "episode"
 
 buffer_size: 50000
-# update the target network every {} episodes
+# 每 {} 个回合更新一次目标网络
 target_update_interval_or_tau: .005
 
 obs_agent_id: True
@@ -11,12 +11,12 @@ obs_last_action: False
 obs_individual_obs: True
 
 
-# use the madddpg_learner to train
+# 使用 madddpg_learner 进行训练
 mac: "maddpg_mac"
 reg: 0.001
 batch_size: 32
 lr: 0.0003
-use_rnn: False # better withoyt rnn (at least on expert data)
+use_rnn: False # 无 RNN 时效果更好（至少在专家数据上）
 
 standardise_returns: False
 standardise_rewards: True

@@ -77,7 +77,7 @@ class ITD3Learner:
             terminated = batch["terminated"][:, :-1].float()
             terminated = terminated.unsqueeze(2).expand(-1, -1, self.n_agents, -1) # (bs, T-1, n_agents, 1)
             mask = 1 - terminated
-            # Train the actor
+            # 训练 Actor
             self.mac.init_hidden(batch_size)
             self.critic1.init_hidden(batch.batch_size)
             pis = []
@@ -143,7 +143,7 @@ class ITD3Learner:
                 # top_inds = top_inds # (1, bs, T-1, n_agents, 1)
                 # top_acs = th.gather(discrete_cem_sampled_acs, dim=0, index=top_inds).squeeze(0).argmax(dim=-1) # (bs, T-1, n_agents)
                 
-                # get top_acs from q_values
+                # 从 q_values 获取 top_acs
                 # assert top_acs is not None
                 # pis = th.cat(pis, dim=1) # (bs, (T-1), n_agents, n_actions)
                 # pis_mask = mask.expand_as(pis)
@@ -164,7 +164,7 @@ class ITD3Learner:
                 mask = mask.reshape(-1, 1)
                 actor_loss = - (q * mask).mean() + self.args.reg * ( masked_pis ** 2).mean()
 
-            # Optimise agents
+            # 优化智能体
             self.agent_optimiser.zero_grad()
             actor_loss.backward()
             actor_grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)
@@ -175,7 +175,7 @@ class ITD3Learner:
                 self.last_target_update_episode = episode_num
             elif self.args.target_update_interval_or_tau <= 1.0:
                 self._update_targets_soft(self.args.target_update_interval_or_tau)
-            # save record
+            # 保存记录
             self.log_actor["actor_loss"].append(actor_loss.item())
             self.log_actor["actor_grad_norm"].append(actor_grad_norm.item())
             if "bc" in self.args.name:
@@ -215,8 +215,8 @@ class ITD3Learner:
             self.rew_ms.update(rewards)
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
         
-        # Train the critic
-        # Compute current 
+        # 训练 Critic
+        # 计算当前值
         critic_inputs = self._build_critic_inputs(batch) # (batch_size, T, n_agents, x)
         # (batch_size, T, n_agents, n_actions)
         self.critic1.init_hidden(batch_size)
@@ -230,7 +230,7 @@ class ITD3Learner:
         q_taken2 = th.stack(q_taken2, dim=1)
 
 
-        # Use the target actor and target critic network to compute the target q
+        # 使用目标 Actor 和目标 Critic 网络计算目标 Q 值
         self.target_mac.init_hidden(batch.batch_size)
         self.target_critic1.init_hidden(batch_size)
         self.target_critic2.init_hidden(batch_size)
@@ -262,7 +262,7 @@ class ITD3Learner:
         td_loss = 0.5 * (masked_td_error1 ** 2).mean() + 0.5 * (masked_td_error2 ** 2).mean()
 
         # if ("cql" in self.args.name or "omar" in self.args.name) and getattr(self.args, "cql_type", "vanilla")=="vanilla":
-        #     # get over actions
+        #     # 遍历动作
         #     assert self.args.critic_rnn is False
         #     consq1 = []
         #     consq2 = []

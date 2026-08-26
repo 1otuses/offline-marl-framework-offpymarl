@@ -193,7 +193,7 @@ class OMARLearner:
             self.rew_ms.update(rewards)
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
             
-        #build_target_q
+        #构建目标 Q 值
         with th.no_grad():
             target_mac_out = []
             self.target_mac.init_hidden(bs)
@@ -220,7 +220,7 @@ class OMARLearner:
             
 
         critic_inputs = self.critic.build_inputs(batch)
-        # train critic, follow icq, is it reasonable?
+        # 训练 Critic，沿用 ICQ 的方式；这样是否合理？
         for t in range(max_t - 1):
             mask_t = repeat_mask[:, t:t+1]
             if mask_t.sum() < 0.5:

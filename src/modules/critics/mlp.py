@@ -8,7 +8,7 @@ class MLPCritic(nn.Module):
         self.args = args
         self.critic_hidden_dim = args.critic_hidden_dim
 
-        # Set up network layers
+        # 设置网络层
         self.fc1 = nn.Linear(input_shape, self.critic_hidden_dim)
         self.fc2 = nn.Linear(self.critic_hidden_dim, self.critic_hidden_dim)
         self.fc3 = nn.Linear(self.critic_hidden_dim, output_shape)

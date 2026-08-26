@@ -7,13 +7,13 @@ EPS = -0.01
 class Scenario(BaseScenario):
     def make_world(self):
         world = World()
-        # set any world properties first
+        # 首先设置任何世界属性
         world.dim_c = 2
         num_good_agents = 1
         num_adversaries = 3
         num_agents = num_adversaries + num_good_agents
         num_landmarks = 2
-        # add agents
+        # 添加智能体
         world.agents = [Agent() for i in range(num_agents)]
         for i, agent in enumerate(world.agents):
             agent.name = 'agent %d' % i
@@ -24,7 +24,7 @@ class Scenario(BaseScenario):
             agent.accel = 3.0 + EPS if agent.adversary else 2.4 + EPS
             #agent.accel = 20.0 if agent.adversary else 25.0
             agent.max_speed = 1.0 + EPS if agent.adversary else 0.8 + EPS
-        # add landmarks
+        # 添加地标
         world.landmarks = [Landmark() for i in range(num_landmarks)]
         for i, landmark in enumerate(world.landmarks):
             landmark.name = 'landmark %d' % i
@@ -32,18 +32,18 @@ class Scenario(BaseScenario):
             landmark.movable = False
             landmark.size = 0.0 + EPS
             landmark.boundary = False
-        # make initial conditions
+        # 设置初始条件
         self.reset_world(world)
         return world
 
     def reset_world(self, world):
-        # random properties for agents
+        # 智能体的随机属性
         for i, agent in enumerate(world.agents):
             agent.color = np.array([0.35, 0.85, 0.35]) if not agent.adversary else np.array([0.85, 0.35, 0.35])
-            # random properties for landmarks
+            # 地标的随机属性
         for i, landmark in enumerate(world.landmarks):
             landmark.color = np.array([0.25, 0.25, 0.25])
-        # set random initial states
+        # 设置随机初始状态
         for agent in world.agents:
             if agent.adversary:
                 agent.state.p_pos = np.random.uniform(-0.8, +0.8, world.dim_p)
@@ -73,11 +73,11 @@ class Scenario(BaseScenario):
         prey = self.good_agents(world)[0]
         return sum([self.is_collision(prey, adv) for adv in self.adversaries(world)]) >= 1
 
-    # return all agents that are not adversaries
+    # 返回所有非对抗智能体
     def good_agents(self, world):
         return [agent for agent in world.agents if not agent.adversary]
 
-    # return all adversarial agents
+    # 返回所有对抗智能体
     def adversaries(self, world):
         return [agent for agent in world.agents if agent.adversary]
 
@@ -94,7 +94,7 @@ class Scenario(BaseScenario):
         return 0.0
 
     def observation(self, agent, world):
-        # get positions of all entities in this agent's reference frame
+        # 获取该智能体参考系中所有实体的位置
         entity_pos = []
         for entity in world.landmarks:
             if not entity.boundary:
@@ -105,5 +105,5 @@ class Scenario(BaseScenario):
             if other is agent: continue
             other_pos.append(other.state.p_pos - agent.state.p_pos)
             if not other.adversary:
-                other_vel.append(other.state.p_vel) # not for prey
+                other_vel.append(other.state.p_vel) # 不适用于猎物
         return np.concatenate(entity_pos + [agent.state.p_pos] + [agent.state.p_vel] + other_pos + other_vel)

@@ -3,7 +3,7 @@ from components.action_selectors import REGISTRY as action_REGISTRY
 import torch as th
 
 
-# This multi-agent controller shares parameters between agents
+# 该多智能体控制器在智能体之间共享参数
 class BasicMAC:
     def __init__(self, scheme, groups, args):
         self.n_agents = args.n_agents
@@ -17,7 +17,7 @@ class BasicMAC:
         self.hidden_states = None
 
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
-        # Only select actions for the selected batch elements in bs
+        # 仅对 bs 中选定的批次元素选择动作
         avail_actions = ep_batch["avail_actions"][:, t_ep]
         agent_outputs = self.forward(ep_batch, t_ep, test_mode=test_mode)
         chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
@@ -27,27 +27,27 @@ class BasicMAC:
         agent_inputs = self._build_inputs(ep_batch, t)
         avail_actions = ep_batch["avail_actions"][:, t]
         agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)
-        # Softmax the agent outputs if they're policy logits
+        # Softmax 智能体输出（如果它们是策略 logits）
         if self.agent_output_type == "pi_logits":
 
             if getattr(self.args, "mask_before_softmax", True):
-                # Make the logits for unavailable actions very negative to minimise their affect on the softmax
+                # 使不可用动作的 logits 非常负，以尽量减少它们对 softmax 的影响
                 reshaped_avail_actions = avail_actions.reshape(ep_batch.batch_size * self.n_agents, -1)
                 agent_outs[reshaped_avail_actions == 0] = -1e10
 
             agent_outs = th.nn.functional.softmax(agent_outs, dim=-1)
             if not test_mode:
-                # Epsilon floor
+                # epsilon 下限
                 epsilon_action_num = agent_outs.size(-1)
                 if getattr(self.args, "mask_before_softmax", True):
-                    # With probability epsilon, we will pick an available action uniformly
+                    # 以 epsilon 概率从可用动作中均匀随机选择
                     epsilon_action_num = reshaped_avail_actions.sum(dim=1, keepdim=True).float()
 
                 agent_outs = ((1 - self.action_selector.epsilon) * agent_outs
                                + th.ones_like(agent_outs) * self.action_selector.epsilon/epsilon_action_num)
                 
                 if getattr(self.args, "mask_before_softmax", True):
-                    # Zero out the unavailable actions
+                    # 将不可用的动作清零
                     agent_outs[reshaped_avail_actions == 0] = 0.0
 
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
@@ -74,8 +74,8 @@ class BasicMAC:
         self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
 
     def _build_inputs(self, batch, t):
-        # Assumes homogenous agents with flat observations.
-        # Other MACs might want to e.g. delegate building inputs to each agent
+        # 假设同质智能体具有扁平观测。
+        # 其他 MAC 可能需要将输入构建委托给各智能体
         bs = batch.batch_size
         inputs = []
         inputs.append(batch["obs"][:, t])  # b1av

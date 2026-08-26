@@ -5,7 +5,7 @@ import torch
 import os
 
 class FrozenTag(gym.Wrapper):
-    """ Tag with pretrained prey agent """
+    """ 使用预训练的猎物智能体进行标记 """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -30,7 +30,7 @@ class FrozenTag(gym.Wrapper):
         return obs, rew, done, info
 
 class RandomTag(gym.Wrapper):
-    """ Tag with pretrained prey agent """
+    """ 使用预训练的猎物智能体进行标记 """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,7 +55,7 @@ class RandomTag(gym.Wrapper):
 
 
 class PretrainedTag(gym.Wrapper):
-    """ Tag with pretrained prey agent """
+    """ 使用预训练的猎物智能体进行标记 """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

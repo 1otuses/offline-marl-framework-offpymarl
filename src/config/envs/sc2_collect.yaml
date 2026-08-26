@@ -39,7 +39,7 @@ runner_log_interval: 10000
 learner_log_interval: 10000
 t_max: 2050000
 
-# offline collection config
+# 离线采集配置
 num_episodes_collected: 4000
 offline_data_quality: "medium"
 offline_data_folder: "dataset"

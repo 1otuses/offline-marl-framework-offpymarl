@@ -24,16 +24,16 @@ class MADDPGCritic(nn.Module):
         return q
         
     def _get_input_shape(self, scheme):
-        # state
+        # 状态
         input_shape = scheme["state"]["vshape"]
         # print(scheme["state"]["vshape"], scheme["obs"]["vshape"], self.n_agents, scheme["actions_one"])
-        # whether to add the individual observation
+        # 是否添加个体观测
         if self.args.critic_individual_obs:
             input_shape += scheme["obs"]["vshape"]
         
         if self.args.critic_last_action:
             input_shape += self.n_actions
-        # agent id
+        # 智能体 ID
         if self.args.critic_agent_id:
             input_shape += self.n_agents
         

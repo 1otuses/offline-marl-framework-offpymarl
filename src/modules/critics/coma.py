@@ -14,7 +14,7 @@ class COMACritic(nn.Module):
         input_shape = self._get_input_shape(scheme)
         self.output_type = "q"
 
-        # Set up network layers
+        # 设置网络层
         self.fc1 = nn.Linear(input_shape, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, self.n_actions)
@@ -31,19 +31,19 @@ class COMACritic(nn.Module):
         max_t = batch.max_seq_length if t is None else 1
         ts = slice(None) if t is None else slice(t, t+1)
         inputs = []
-        # state
+        # 状态
         inputs.append(batch["state"][:, ts].unsqueeze(2).repeat(1, 1, self.n_agents, 1))
 
-        # observation
+        # 观测
         inputs.append(batch["obs"][:, ts])
 
-        # actions (masked out by agent)
+        # 动作（已按智能体进行掩码）
         actions = batch["actions_onehot"][:, ts].view(bs, max_t, 1, -1).repeat(1, 1, self.n_agents, 1)
         agent_mask = (1 - th.eye(self.n_agents, device=batch.device))
         agent_mask = agent_mask.view(-1, 1).repeat(1, self.n_actions).view(self.n_agents, -1)
         inputs.append(actions * agent_mask.unsqueeze(0).unsqueeze(0))
 
-        # last actions
+        # 上一个动作
         if t == 0:
             inputs.append(th.zeros_like(batch["actions_onehot"][:, 0:1]).view(bs, max_t, 1, -1).repeat(1, 1, self.n_agents, 1))
         elif isinstance(t, int):
@@ -59,12 +59,12 @@ class COMACritic(nn.Module):
         return inputs
 
     def _get_input_shape(self, scheme):
-        # state
+        # 状态
         input_shape = scheme["state"]["vshape"]
-        # observation
+        # 观测
         input_shape += scheme["obs"]["vshape"]
-        # actions and last actions
+        # 当前动作和上一个动作
         input_shape += scheme["actions_onehot"]["vshape"][0] * self.n_agents * 2
-        # agent id
+        # 智能体 ID
         input_shape += self.n_agents
         return input_shape

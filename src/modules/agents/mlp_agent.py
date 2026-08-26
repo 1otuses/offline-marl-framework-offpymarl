@@ -14,7 +14,7 @@ class MLPAgent(nn.Module):
 
 
     def init_hidden(self):
-        # make hidden states on same device as model
+        # 在与模型相同的设备上创建隐藏状态
         return None
 
     def forward(self, inputs, hidden_state=None):

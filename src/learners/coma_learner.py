@@ -30,7 +30,7 @@ class COMALearner:
         self.critic_optimiser = RMSprop(params=self.critic_params, lr=args.critic_lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        # Get the relevant quantities
+        # 获取相关张量
         bs = batch.batch_size
         max_t = batch.max_seq_length
         rewards = batch["reward"][:, :-1]
@@ -54,19 +54,19 @@ class COMALearner:
         for t in range(batch.max_seq_length - 1):
             agent_outs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
-        mac_out = th.stack(mac_out, dim=1)  # Concat over time
+        mac_out = th.stack(mac_out, dim=1)  # 沿时间维拼接
 
-        # Mask out unavailable actions, renormalise (as in action selection)
+        # 屏蔽掉不可用的动作，重新规范化（如动作选择）
         mac_out[avail_actions == 0] = 0
         mac_out = mac_out/mac_out.sum(dim=-1, keepdim=True)
         mac_out[avail_actions == 0] = 0
 
-        # Calculated baseline
+        # 计算基线
         q_vals = q_vals.reshape(-1, self.n_actions)
         pi = mac_out.view(-1, self.n_actions)
         baseline = (pi * q_vals).sum(-1).detach()
 
-        # Calculate policy grad with mask
+        # 使用掩码计算策略梯度
         q_taken = th.gather(q_vals, dim=1, index=actions.reshape(-1, 1)).squeeze(1)
         pi_taken = th.gather(pi, dim=1, index=actions.reshape(-1, 1)).squeeze(1)
         pi_taken[mask == 0] = 1.0
@@ -76,7 +76,7 @@ class COMALearner:
 
         coma_loss = - ((advantages * log_pi_taken) * mask).sum() / mask.sum()
 
-        # Optimise agents
+        # 优化智能体
         self.agent_optimiser.zero_grad()
         coma_loss.backward()
         grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)
@@ -100,11 +100,11 @@ class COMALearner:
             self.log_stats_t = t_env
 
     def _train_critic(self, batch, rewards, terminated, actions, avail_actions, mask, bs, max_t):
-        # Optimise critic
+        # 优化 Critic
         target_q_vals = self.target_critic(batch)[:, :]
         targets_taken = th.gather(target_q_vals, dim=3, index=actions).squeeze(3)
 
-        # Calculate td-lambda targets
+        # 计算 td-lambda 目标
         targets = build_td_lambda_targets(rewards, terminated, mask, targets_taken, self.n_agents, self.args.gamma, self.args.td_lambda)
 
         q_vals = th.zeros_like(target_q_vals)[:, :-1]
@@ -129,10 +129,10 @@ class COMALearner:
 
             td_error = (q_taken - targets_t.detach())
 
-            # 0-out the targets that came from padded data
+            # 将由填充数据产生的目标值清零
             masked_td_error = td_error * mask_t
 
-            # Normal L2 loss, take mean over actual data
+            # 标准 L2 损失，对实际数据取平均值
             loss = (masked_td_error ** 2).sum() / mask_t.sum()
             self.critic_optimiser.zero_grad()
             loss.backward()
@@ -170,7 +170,7 @@ class COMALearner:
     def load_models(self, path):
         self.mac.load_models(path)
         self.critic.load_state_dict(th.load("{}/critic.th".format(path), map_location=lambda storage, loc: storage))
-        # Not quite right but I don't want to save target networks
+        # 不太正确，但我不想保存目标网络
         self.target_critic.load_state_dict(self.critic.state_dict())
         self.agent_optimiser.load_state_dict(th.load("{}/agent_opt.th".format(path), map_location=lambda storage, loc: storage))
         self.critic_optimiser.load_state_dict(th.load("{}/critic_opt.th".format(path), map_location=lambda storage, loc: storage))

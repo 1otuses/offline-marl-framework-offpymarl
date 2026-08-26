@@ -19,14 +19,14 @@ from components.transforms import OneHot
 
 def run(_run, _config, _log):
 
-    # check args sanity
+    # 检查参数有效性
     _config = args_sanity_check(_config, _log)
 
     args = SN(**_config)
     args.device = "cuda" if args.use_cuda else "cpu"
 
     
-    # setup loggers
+    # 设置记录器
     logger = Logger(_log)
 
     _log.info("Experiment Parameters:")
@@ -35,7 +35,7 @@ def run(_run, _config, _log):
                                        width=1)
     _log.info("\n\n" + experiment_params + "\n")
 
-    # already set in main.py
+    # 已经在 main.py 中设置
     #unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     #args.unique_token = unique_token
 
@@ -47,7 +47,7 @@ def run(_run, _config, _log):
     
     
     if args.use_tensorboard and not args.evaluate:
-        # only log tensorboard when in training mode
+        # 仅在训练模式下记录 TensorBoard 日志
         tb_exp_direc = os.path.join(results_save_dir, 'logs')
         logger.setup_tb(tb_exp_direc)
         
@@ -59,21 +59,21 @@ def run(_run, _config, _log):
         wandb_exp_direc = os.path.join(results_save_dir, 'logs')
         logger.setup_wandb(wandb_exp_direc, project=args.wandb_project_name, name=wandb_run_name,
                            run_id=args.resume_id, config=args)
-    # write config file
+    # 写入配置文件
     config_str = json.dumps(vars(args), indent=4)
     with open(os.path.join(results_save_dir, "config.json"), "w") as f:
         f.write(config_str)
-    # set model save dir
+    # 设置模型保存目录
     args.model_save_dir = os.path.join(results_save_dir, 'models')
 
     
-    # sacred is on by default
+    # 默认启用 Sacred
     logger.setup_sacred(_run)
 
-    # Run and train
+    # 运行并训练
     run_sequential(args=args, logger=logger)
 
-    # Clean up after finishing
+    # 完成后清理资源
     print("Exiting Main")
 
     print("Stopping all threads")
@@ -85,7 +85,7 @@ def run(_run, _config, _log):
 
     print("Exiting script")
 
-    # Making sure framework really exits
+    # 确保框架进程真正退出
     os._exit(os.EX_OK)
 
 
@@ -101,15 +101,15 @@ def evaluate_sequential(args, runner):
 
 def run_sequential(args, logger):
 
-    # Init runner so we can get env info
+    # 初始化运行器以便我们可以获得环境信息
     runner = r_REGISTRY[args.runner](args=args, logger=logger)
 
-    # Set up schemes and groups here
+    # 在这里设置方案和组
     env_info = runner.get_env_info()
     for k, v in env_info.items():
         setattr(args, k, v)
 
-    # Default/Base scheme
+    # 默认/基本方案
     scheme = {
         "state": {"vshape": env_info["state_shape"]},
         "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
@@ -129,13 +129,13 @@ def run_sequential(args, logger):
                           preprocess=preprocess,
                           device="cpu" if args.buffer_cpu_only else args.device)
 
-    # Setup multiagent controller here
+    # 在这里设置多智能体控制器
     mac = mac_REGISTRY[args.mac](buffer.scheme, groups, args)
 
-    # Give runner the scheme
+    # 将数据方案交给运行器
     runner.setup(scheme=scheme, groups=groups, preprocess=preprocess, mac=mac)
 
-    # Learner
+    # 学习器
     learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
 
     if args.use_cuda:
@@ -150,18 +150,18 @@ def run_sequential(args, logger):
             logger.console_logger.info("Checkpoint directiory {} doesn't exist".format(args.checkpoint_path))
             return
 
-        # Go through all files in args.checkpoint_path
+        # 遍历 args.checkpoint_path 中的所有文件
         for name in os.listdir(args.checkpoint_path):
             full_name = os.path.join(args.checkpoint_path, name)
-            # Check if they are dirs the names of which are numbers
+            # 检查名称为数字的目录
             if os.path.isdir(full_name) and name.isdigit():
                 timesteps.append(int(name))
 
         if args.load_step == 0:
-            # choose the max timestep
+            # 选择最大时间步长
             timestep_to_load = max(timesteps)
         else:
-            # choose the timestep closest to load_step
+            # 选择最接近 load_step 的时间步
             timestep_to_load = min(timesteps, key=lambda x: abs(x - args.load_step))
 
         model_path = os.path.join(args.checkpoint_path, str(timestep_to_load))
@@ -173,7 +173,7 @@ def run_sequential(args, logger):
             evaluate_sequential(args, runner)
             return
 
-    # start training
+    # 开始训练
     episode = 0
     last_test_T = -args.test_interval - 1
     last_log_T = 0
@@ -186,18 +186,18 @@ def run_sequential(args, logger):
 
     while runner.t_env <= args.t_max:
 
-        # Run for a whole episode at a time
+        # 每次运行一个完整回合
         episode_batch = runner.run(test_mode=False)
         buffer.insert_episode_batch(episode_batch)
 
         if buffer.can_sample(args.batch_size):
-            # balance between parallel and episode run
-            # sample batch_size epsiodes->train batch_size
+            # 在并行运行与按回合运行之间平衡
+            # 采样 batch_size 个回合，用于大小为 batch_size 的训练批次
             terminated = False
             for _run in range(runner.batch_size):
                 episode_sample = buffer.sample(args.batch_size)
 
-                # Truncate batch to only filled timesteps
+                # 将批次截断为仅填充的时间步长
                 max_ep_t = episode_sample.max_t_filled()
                 episode_sample = episode_sample[:, :max_ep_t]
 
@@ -208,7 +208,7 @@ def run_sequential(args, logger):
                 if terminated is not None and terminated:
                     break
 
-        # Execute test runs once in a while
+        # 偶尔执行一次测试运行
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0:
 
@@ -240,12 +240,12 @@ def run_sequential(args, logger):
             #     case _:
             #         save_path = os.path.join(local_results_path, args.env, args.name, "models", args.unique_token, str(runner.t_env))
             
-            # # results/sc2/2s3z/qmix/models/unqiue_token/t_env
+            # # 结果/sc2/2s3z/qmix/models/unqiue_token/t_env
             # os.makedirs(save_path, exist_ok=True)
             # logger.console_logger.info("Saving models to {}".format(save_path))
 
-            # # learner should handle saving/loading -- delegate actor save/load to mac,
-            # # use appropriate filenames to do critics, optimizer states
+            # # 学习者应该处理保存/加载——将 actor 保存/加载委托给 mac，
+            # # 使用适当的文件名保存 Critic 和优化器状态
             # learner.save_models(save_path)
 
         episode += args.batch_size_run
@@ -255,14 +255,14 @@ def run_sequential(args, logger):
             logger.print_recent_stats()
             last_log_T = runner.t_env
 
-    # close environment
+    # 关闭环境
     runner.close_env()
     logger.console_logger.info("Finished Training")
 
 
 def args_sanity_check(config, _log):
 
-    # set CUDA flags
+    # 设置 CUDA 标志
     # config["use_cuda"] = True # Use cuda whenever possible!
     if config["use_cuda"] and not th.cuda.is_available():
         config["use_cuda"] = False

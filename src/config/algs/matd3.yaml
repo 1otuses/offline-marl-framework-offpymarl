@@ -1,9 +1,9 @@
-# --- MATD3 specific parameters ---
+# --- MATD3 具体参数 ---
 
 runner: "episode"
 
 buffer_size: 50000
-# update the target network every {} episodes
+# 每 {} 个回合更新一次目标网络
 target_update_interval_or_tau: .005
 
 obs_agent_id: True
@@ -14,7 +14,7 @@ critic_individual_obs: True
 critic_last_action: False
 critic_agent_id: True
 
-# use the madddpg_learner to train
+# 使用 madddpg_learner 进行训练
 mac: "maddpg_mac"
 reg: 0.001
 batch_size: 32

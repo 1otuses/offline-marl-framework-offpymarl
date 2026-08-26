@@ -1,4 +1,4 @@
-# --- OMAR specific parameters ---
+# --- OMAR 具体参数 ---
 
 action_selector: "multinomial"
 epsilon_start: .5
@@ -8,7 +8,7 @@ mask_before_softmax: True
 
 runner: "parallel"
 
-batch_size_run: 8 # batch_size_run=4, buffer_size = 2500, batch_size=64  for 3s5z_vs_3s6z
+batch_size_run: 8 # 对 3s5z_vs_3s6z：batch_size_run=4、buffer_size=2500、batch_size=64
 
 buffer_size: 32
 batch_size: 128
@@ -16,7 +16,7 @@ batch_size: 128
 # env_args:
 #   state_last_action: False # critic adds last action internally
 
-# update the target network every {} training steps
+# 每 {} 个训练步更新一次目标网络
 target_update_interval_or_tau: 200
 
 
@@ -30,10 +30,10 @@ critic_hidden_dim: 256
 omar_iters: 5
 omar_coe: 0.5
 omar_num_samples: 10
-# use qmix
+# 使用 qmix
 mixing_embed_dim: 32
 
-# use COMA
+# 使用 COMA
 agent_output_type: "pi_logits"
 learner: "omar_learner"
 

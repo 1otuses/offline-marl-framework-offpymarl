@@ -1,5 +1,5 @@
 """
-2D rendering framework
+二维渲染框架。
 """
 from __future__ import division
 import os
@@ -9,7 +9,7 @@ import sys
 if "Apple" in sys.version:
     if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
         os.environ['DYLD_FALLBACK_LIBRARY_PATH'] += ':/usr/lib'
-        # (JDS 2016/04/15): avoid bug on Anaconda 2.3.0 / Yosemite
+        # (JDS 2016/04/15)：避免 Anaconda 2.3.0 / Yosemite 上的错误
 
 from gym import error
 
@@ -39,10 +39,9 @@ import numpy as np
 RAD2DEG = 57.29577951308232
 
 def get_display(spec):
-    """Convert a display specification (such as :0) into an actual Display
-    object.
+    """将显示规范（例如 :0）转换为实际的 Display 对象。
 
-    Pyglet only supports multiple Displays on Linux.
+    Pyglet 仅在 Linux 上支持多个 Display。
     """
     if spec is None:
         return None
@@ -108,19 +107,17 @@ class Viewer(object):
             buffer = pyglet.image.get_buffer_manager().get_color_buffer()
             image_data = buffer.get_image_data()
             arr = np.fromstring(image_data.get_data(), dtype=np.uint8, sep='')
-            # In https://github.com/openai/gym-http-api/issues/2, we
-            # discovered that someone using Xmonad on Arch was having
-            # a window of size 598 x 398, though a 600 x 400 window
-            # was requested. (Guess Xmonad was preserving a pixel for
-            # the boundary.) So we use the buffer height/width rather
-            # than the requested one.
+            # 根据 https://github.com/openai/gym-http-api/issues/2，
+            # Arch 上的 Xmonad 可能会把请求的 600 x 400 窗口
+            # 创建为 598 x 398（可能为边框保留了像素）。因此，
+            # 这里使用实际缓冲区的高度和宽度，而不是请求值。
             arr = arr.reshape(buffer.height, buffer.width, 4)
             arr = arr[::-1,:,0:3]
         self.window.flip()
         self.onetime_geoms = []
         return arr
 
-    # Convenience
+    # 便捷方法
     def draw_circle(self, radius=10, res=30, filled=True, **attrs):
         geom = make_circle(radius=radius, res=res, filled=filled)
         _add_attrs(geom, attrs)
@@ -189,7 +186,7 @@ class Transform(Attr):
         self.set_scale(*scale)
     def enable(self):
         glPushMatrix()
-        glTranslatef(self.translation[0], self.translation[1], 0) # translate to GL loc ppint
+        glTranslatef(self.translation[0], self.translation[1], 0) # 转换到 GL 坐标点
         glRotatef(RAD2DEG * self.rotation, 0, 0, 1.0)
         glScalef(self.scale[0], self.scale[1], 1)
     def disable(self):
@@ -226,7 +223,7 @@ class Point(Geom):
     def __init__(self):
         Geom.__init__(self)
     def render1(self):
-        glBegin(GL_POINTS) # draw point
+        glBegin(GL_POINTS) # 绘制点
         glVertex3f(0.0, 0.0, 0.0)
         glEnd()
 
@@ -239,14 +236,14 @@ class FilledPolygon(Geom):
         elif len(self.v)  > 4 : glBegin(GL_POLYGON)
         else: glBegin(GL_TRIANGLES)
         for p in self.v:
-            glVertex3f(p[0], p[1],0)  # draw each vertex
+            glVertex3f(p[0], p[1],0)  # 绘制每个顶点
         glEnd()
 
         color = (self._color.vec4[0] * 0.5, self._color.vec4[1] * 0.5, self._color.vec4[2] * 0.5, self._color.vec4[3] * 0.5)
         glColor4f(*color)
         glBegin(GL_LINE_LOOP)
         for p in self.v:
-            glVertex3f(p[0], p[1],0)  # draw each vertex
+            glVertex3f(p[0], p[1],0)  # 绘制每个顶点
         glEnd()
 
 def make_circle(radius=10, res=30, filled=True):
@@ -295,7 +292,7 @@ class PolyLine(Geom):
     def render1(self):
         glBegin(GL_LINE_LOOP if self.close else GL_LINE_STRIP)
         for p in self.v:
-            glVertex3f(p[0], p[1],0)  # draw each vertex
+            glVertex3f(p[0], p[1],0)  # 绘制每个顶点
         glEnd()
     def set_linewidth(self, x):
         self.linewidth.stroke = x

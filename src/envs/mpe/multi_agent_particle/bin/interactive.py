@@ -8,32 +8,32 @@ from mpe.policy import InteractivePolicy
 import mpe.scenarios as scenarios
 
 if __name__ == '__main__':
-    # parse arguments
+    # 解析参数
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-s', '--scenario', default='simple.py', help='Path of the scenario Python script.')
     args = parser.parse_args()
 
-    # load scenario from script
+    # 从脚本加载场景
     scenario = scenarios.load(args.scenario).Scenario()
-    # create world
+    # 创建世界
     world = scenario.make_world()
-    # create multiagent environment
+    # 创建多智能体环境
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, shared_viewer = False)
-    # render call to create viewer window (necessary only for interactive policies)
+    # 调用渲染以创建查看器窗口（仅交互式策略需要）
     env.render()
-    # create interactive policies for each agent
+    # 为每个智能体创建交互式策略
     policies = [InteractivePolicy(env,i) for i in range(env.n)]
-    # execution loop
+    # 执行循环
     obs_n = env.reset()
     while True:
-        # query for action from each agent's policy
+        # 从每个智能体的策略中查询动作
         act_n = []
         for i, policy in enumerate(policies):
             act_n.append(policy.action(obs_n[i]))
-        # step environment
+        # 推进环境一步
         obs_n, reward_n, done_n, _ = env.step(act_n)
-        # render all agent views
+        # 渲染所有智能体视图
         env.render()
-        # display rewards
+        # 显示奖励
         #for agent in env.world.agents:
         #    print(agent.name + " reward: %0.3f" % env._get_reward(agent))

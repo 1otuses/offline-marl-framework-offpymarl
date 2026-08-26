@@ -101,7 +101,7 @@ class EpisodeBatch:
 
             dtype = self.scheme[k].get("dtype", th.float32)
             #v = th.tensor(v, dtype=dtype, device=self.device)
-            # allowance for different types of variables
+            # 允许不同类型的变量
             if isinstance(v, list):
                 v = th.tensor(np.stack(v, axis=0), dtype=dtype, device=self.device)
             elif isinstance(v, th.Tensor):
@@ -146,7 +146,7 @@ class EpisodeBatch:
                 else:
                     raise KeyError("Unrecognised key {}".format(key))
 
-            # Update the scheme to only have the requested keys
+            # 更新数据方案，仅保留请求的键
             new_scheme = {key: self.scheme[key] for key in item}
             new_groups = {self.scheme[key]["group"]: self.groups[self.scheme[key]["group"]]
                           for key in item if "group" in self.scheme[key]}
@@ -181,24 +181,24 @@ class EpisodeBatch:
 
     def _parse_slices(self, items):
         parsed = []
-        # Only batch slice given, add full time slice
-        if (isinstance(items, slice)  # slice a:b
+        # 只给出批量切片，添加全时间切片
+        if (isinstance(items, slice)  # 切片 a:b
             or isinstance(items, int)  # int i
             or (isinstance(items, (list, np.ndarray, th.LongTensor, th.cuda.LongTensor)))  # [a,b,c]
             ):
             items = (items, slice(None))
 
-        # Need the time indexing to be contiguous
+        # 需要时间索引是连续的
         if isinstance(items[1], list):
             raise IndexError("Indexing across Time must be contiguous")
 
         for item in items:
-            #TODO: stronger checks to ensure only supported options get through
+            #TODO：更严格的检查以确保只有受支持的选项才能通过
             if isinstance(item, int):
-                # Convert single indices to slices
+                # 将单个索引转换为切片
                 parsed.append(slice(item, item+1))
             else:
-                # Leave slices and lists as is
+                # 保留切片和列表不变
                 parsed.append(item)
         return parsed
 
@@ -215,7 +215,7 @@ class EpisodeBatch:
 class ReplayBuffer(EpisodeBatch):
     def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu"):
         super(ReplayBuffer, self).__init__(scheme, groups, buffer_size, max_seq_length, preprocess=preprocess, device=device)
-        self.buffer_size = buffer_size  # same as self.batch_size but more explicit
+        self.buffer_size = buffer_size  # 与 self.batch_size 相同，但含义更明确
         self.buffer_index = 0
         self.episodes_in_buffer = 0
 
@@ -244,7 +244,7 @@ class ReplayBuffer(EpisodeBatch):
         if self.episodes_in_buffer == batch_size:
             return self[:batch_size]
         else:
-            # Uniform sampling only atm
+            # 目前仅支持均匀采样
             ep_ids = np.random.choice(self.episodes_in_buffer, batch_size, replace=False)
             return self[ep_ids]
 

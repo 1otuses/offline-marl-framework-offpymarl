@@ -5,7 +5,7 @@ import torch
 import os
 
 class PretrainedAdversary(gym.Wrapper):
-    """ Adversary with pretrained adversary agent """
+    """ 具有预先训练的对手智能体的对手 """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

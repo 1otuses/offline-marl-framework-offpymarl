@@ -55,7 +55,7 @@ def plot_graph(G):
         hoverinfo="text",
         marker=go.Marker(
             showscale=False,
-            # colorscale options
+            # 色阶选项
             # 'Greys' | 'Greens' | 'Bluered' | 'Hot' | 'Picnic' | 'Portland' |
             # Jet' | 'RdBu' | 'Blackbody' | 'Earth' | 'Electric' | 'YIOrRd' | 'YIGnBu'
             colorscale="YIGnBu",
@@ -155,7 +155,7 @@ class Node:
         return u_new
 
     def best_child(self, c=2, h=10):
-        my_id = 0  # todo fix this
+        my_id = 0  # TODO：修复此问题
 
         ucb1 = lambda u: (
             u.reward / u.visits
@@ -181,7 +181,7 @@ class MonteCarloAgent(Agent):
 
     def step(self, obs):
 
-        my_id = 0  # todo fix this
+        my_id = 0  # TODO：修复此问题
         env = Env.from_obs(obs)
         root = self.uct_search(env)
 
@@ -201,17 +201,17 @@ class MonteCarloAgent(Agent):
 
         while time.time() < future:
 
-            # selection & expansion
+            # 选择与扩展
             u_next = self.tree_policy(root)
 
             if u_next not in graph:
                 graph.add_node(u_next)
                 graph.add_edge(u_next.parent, u_next, action=str(u_next.move))
 
-            # simulation
+            # 模拟
             delta = self.default_policy(u_next)
 
-            # back propagation
+            # 反向传播
             self.backup(u_next, delta)
 
         # py.plot(plot_graph(graph))
@@ -248,6 +248,6 @@ class MonteCarloAgent(Agent):
         else:
             new_state = u.state
 
-        my_id = 0  # todo fix this
+        my_id = 0  # TODO：修复此问题
 
         return new_state.players[my_id].score

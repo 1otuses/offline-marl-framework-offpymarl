@@ -2,15 +2,15 @@ import torch as th
 
 
 def build_td_lambda_targets(rewards, terminated, mask, target_qs, n_agents, gamma, td_lambda):
-    # Assumes  <target_qs > in B*T*A and <reward >, <terminated >, <mask > in (at least) B*T-1*1
-    # Initialise  last  lambda -return  for  not  terminated  episodes
+    # 假设 B*T*A 中的 <target_qs > 和（至少）B*T-1*1 中的 <reward >、<terminated >、<mask >
+    # 为未终止回合初始化最后一个 lambda-return
     ret = target_qs.new_zeros(*target_qs.shape)
     ret[:, -1] = target_qs[:, -1] * (1 - th.sum(terminated, dim=1))
-    # Backwards  recursive  update  of the "forward  view"
+    # “前向视图”的向后递归更新
     for t in range(ret.shape[1] - 2, -1,  -1):
         ret[:, t] = td_lambda * gamma * ret[:, t + 1] + mask[:, t] \
                     * (rewards[:, t] + (1 - td_lambda) * gamma * target_qs[:, t + 1] * (1 - terminated[:, t]))
-    # Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+    # 返回从 t=0 到 t=T-1 的 lambda-return，即形状为 B*T-1*A
     return ret[:, 0:-1]
 
 def build_gae_targets(rewards, masks, values, gamma, lambd):
@@ -29,16 +29,16 @@ def build_gae_targets(rewards, masks, values, gamma, lambd):
 
 
 def build_q_lambda_targets(rewards, terminated, mask, exp_qvals, qvals, gamma, td_lambda):
-    # Assumes  <target_qs > in B*T*A and <reward >, <terminated >, <mask > in (at least) B*T-1*1
-    # Initialise  last  lambda -return  for  not  terminated  episodes
+    # 假设 B*T*A 中的 <target_qs > 和（至少）B*T-1*1 中的 <reward >、<terminated >、<mask >
+    # 为未终止回合初始化最后一个 lambda-return
     ret = exp_qvals.new_zeros(*exp_qvals.shape)
     ret[:, -1] = exp_qvals[:, -1] * (1 - th.sum(terminated, dim=1))
-    # Backwards  recursive  update  of the "forward  view"
+    # “前向视图”的向后递归更新
     for t in range(ret.shape[1] - 2, -1,  -1):
-        reward = rewards[:, t] + exp_qvals[:, t] - qvals[:, t] #off-policy correction
+        reward = rewards[:, t] + exp_qvals[:, t] - qvals[:, t] #离策略修正
         ret[:, t] = td_lambda * gamma * ret[:, t + 1] + mask[:, t] \
                     * (reward + (1 - td_lambda) * gamma * exp_qvals[:, t + 1] * (1 - terminated[:, t]))
-    # Returns lambda-return from t=0 to t=T-1, i.e. in B*T-1*A
+    # 返回从 t=0 到 t=T-1 的 lambda-return，即形状为 B*T-1*A
     return ret[:, 0:-1]
 
 def build_icq_target_q(td_q, target_q, mac, mask, gamma, td_lambda, n):

@@ -43,7 +43,7 @@ class MADDPGLearner:
             self.rew_ms = RunningMeanStd(shape=(1,), device=device)
     
     def train(self, batch, t_env: int, episode_num: int):
-        # Get the relevant quantities
+        # 获取相关张量
         rewards = batch["reward"][:, :-1] # (bs, T-1, 1)
         actions = batch["actions_onehot"]
         terminated = batch["terminated"][:, :-1].float()
@@ -56,19 +56,19 @@ class MADDPGLearner:
             self.rew_ms.update(rewards)
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
         
-        # Train the critic
+        # 训练 Critic
         critic_inputs = self._build_critic_inputs(batch)
         actions = actions.view(batch_size, -1, 1, self.n_agents * self.n_actions).expand(-1, -1, self.n_agents, -1)
         q_taken = self.critic(critic_inputs[:, :-1], actions[:, :-1].detach()) # (batch_size, T-1, n_agents, 1)
         q_taken = q_taken.view(batch_size, -1, 1) # (batch_size, (T-1)*n_agents, 1)
 
-        # Use the target actor and target critic network to compute the target q
+        # 使用目标 Actor 和目标 Critic 网络计算目标 Q 值
         self.target_mac.init_hidden(batch.batch_size)
         target_actions = []
         for t in range(batch.max_seq_length):
             agent_target_outs = self.target_mac.target_actions(batch, t) # (bs, n_agents, n_ac)
             target_actions.append(agent_target_outs)
-        target_actions = th.stack(target_actions, dim=1)[:, 1:]  # Concat over time, (bs, T-1, n_agents, n_ac)
+        target_actions = th.stack(target_actions, dim=1)[:, 1:]  # 沿时间维拼接，(bs, T-1, n_agents, n_ac)
 
         target_actions = target_actions.view(batch_size, -1, 1, self.n_agents * self.n_actions).expand(-1, -1, self.n_agents, -1)
         target_vals = self.target_critic(critic_inputs[:, 1:], target_actions.detach())
@@ -93,7 +93,7 @@ class MADDPGLearner:
         critic_grad_norm = th.nn.utils.clip_grad_norm_(self.critic_params, self.args.grad_norm_clip)
         self.critic_optimiser.step()
 
-        # Train the actor
+        # 训练 Actor
         self.mac.init_hidden(batch_size)
         pis = []
         actions = []
@@ -113,9 +113,9 @@ class MADDPGLearner:
             actions_i = []
             for j in range(self.n_agents):
                 if i == j:
-                    actions_i.append(temp_action[j]) # keep the gradient of itself
+                    actions_i.append(temp_action[j]) # 保持自身的梯度
                 else:
-                    actions_i.append(temp_action[j].detach()) # detach others when calculate q^i(s, a_i, a_{-i}.detach)
+                    actions_i.append(temp_action[j].detach()) # 计算 q^i(s, a_i, a_{-i}.detach) 时对其他智能体执行 detach
             actions_i = th.cat(actions_i, dim=-1) # (bs, T-1, n_agents*n_actions)
             new_actions.append(actions_i.unsqueeze(2))
         new_actions = th.cat(new_actions, dim=2) # (bs, T-1, n_agents, n_agents*n_actions)
@@ -128,15 +128,15 @@ class MADDPGLearner:
         q = q.reshape(-1, 1) # (bs * (T-1) * n_agents, 1)
         mask = mask.reshape(-1, 1)
 
-        # Compute the actor loss
+        # 计算 Actor 损失
         # actor_loss = - (q * mask).sum() / mask.sum() + ...
-        # original: pis ** 2 -> masked_pis ** 2
+        # 原始： pis ** 2 -> masked_pis ** 2
         """print(q.shape)
         print(mask.shape)
         print(pi.shape)"""
         actor_loss = - (q * mask).mean() + self.args.reg * ( masked_pis ** 2).mean()
 
-        # Optimise agents
+        # 优化智能体
         self.agent_optimiser.zero_grad()
         actor_loss.backward()
         actor_grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)

@@ -71,13 +71,13 @@ class MATD3Learner:
             terminated = batch["terminated"][:, :-1].float()
             terminated = terminated.unsqueeze(2).expand(-1, -1, self.n_agents, -1) # (bs, T-1, n_agents, 1)
             mask = 1 - terminated
-            # Train the actor
+            # 训练 Actor
             self.mac.init_hidden(batch_size)
             pis = []
             actions = []
             for t in range(batch.max_seq_length-1):
                 pi = self.mac.forward(batch, t=t).view(batch_size, 1, self.n_agents, -1) # (batch_size, 1, n_agents, n_acs)
-                pis.append(pi) # avail_actions have been masked already
+                pis.append(pi) # avail_actions 已经被屏蔽
                 actions.append(gumbel_softmax(pi, hard=True)) # (batch_size, 1, n_agents, n_acs)
             
             actions = th.cat(actions, dim=1) # (batch_size, T-1, n_agents, n_acs)
@@ -91,9 +91,9 @@ class MATD3Learner:
                 actions_i = []
                 for j in range(self.n_agents):
                     if i == j:
-                        actions_i.append(temp_action[j]) # keep the gradient of itself
+                        actions_i.append(temp_action[j]) # 保持自身的梯度
                     else:
-                        actions_i.append(temp_action[j].detach()) # detach others when calculate q^i(s, a_i, a_{-i}.detach)
+                        actions_i.append(temp_action[j].detach()) # 计算 q^i(s, a_i, a_{-i}.detach) 时对其他智能体执行 detach
                 actions_i = th.cat(actions_i, dim=-1) # (bs, T-1, n_agents*n_actions)
                 new_actions.append(actions_i.unsqueeze(2))
             new_actions = th.cat(new_actions, dim=2) # (bs, T-1, n_agents, n_agents*n_actions)
@@ -124,7 +124,7 @@ class MATD3Learner:
                 mask = mask.reshape(-1, 1)
                 actor_loss = - (q * mask).mean() + self.args.reg * ( masked_pis ** 2).mean()
                 #actor_loss = bc_loss
-            # Optimise agents
+            # 优化智能体
             self.agent_optimiser.zero_grad()
             actor_loss.backward()
             actor_grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)
@@ -135,7 +135,7 @@ class MATD3Learner:
                 self.last_target_update_episode = episode_num
             elif self.args.target_update_interval_or_tau <= 1.0:
                 self._update_targets_soft(self.args.target_update_interval_or_tau)
-            # save record
+            # 保存记录
             self.log_actor["actor_loss"].append(actor_loss.item())
             self.log_actor["actor_grad_norm"].append(actor_grad_norm.item())
             if "bc" in self.args.name:
@@ -170,7 +170,7 @@ class MATD3Learner:
             self.rew_ms.update(rewards)
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
         
-        # Train the critic
+        # 训练 Critic
         critic_inputs = self._build_critic_inputs(batch)
         actions = actions.view(batch_size, -1, 1, self.n_agents * self.n_actions).expand(-1, -1, self.n_agents, -1)
         q_taken1 = self.critic1(critic_inputs[:, :-1], actions[:, :-1].detach()) # (batch_size, T-1, n_agents, 1)
@@ -179,13 +179,13 @@ class MATD3Learner:
         q_taken1 = q_taken1.view(batch_size, -1, 1) # (batch_size, (T-1)*n_agents, 1)
         q_taken2 = q_taken2.view(batch_size, -1, 1)
 
-        # Use the target actor and target critic network to compute the target q
+        # 使用目标 Actor 和目标 Critic 网络计算目标 Q 值
         self.target_mac.init_hidden(batch.batch_size)
         target_actions = []
         for t in range(batch.max_seq_length):
             agent_target_outs = self.target_mac.target_actions(batch, t) # (bs, n_agents, n_ac)
             target_actions.append(agent_target_outs)
-        target_actions = th.stack(target_actions, dim=1)[:, 1:]  # Concat over time, (bs, T-1, n_agents, n_ac)
+        target_actions = th.stack(target_actions, dim=1)[:, 1:]  # 沿时间维拼接，(bs, T-1, n_agents, n_ac)
 
         target_actions = target_actions.view(batch_size, -1, 1, self.n_agents * self.n_actions).expand(-1, -1, self.n_agents, -1)
         target_vals1 = self.target_critic1(critic_inputs[:, 1:], target_actions.detach())

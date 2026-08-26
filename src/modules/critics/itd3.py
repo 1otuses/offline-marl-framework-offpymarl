@@ -21,7 +21,7 @@ class ITD3Critic(nn.Module):
         self.fc3 = nn.Linear(args.hidden_dim, 1)
     
     def init_hidden(self, batch_size):
-        # make hidden states on same device as model
+        # 在与模型相同的设备上创建隐藏状态
         if self.critic_rnn:
             self.hidden_states = self.fc1.weight.new(batch_size, self.n_agents, self.args.hidden_dim).zero_()   
             self.hidden_states = self.hidden_states.reshape(-1, self.args.hidden_dim)

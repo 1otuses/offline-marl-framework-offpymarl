@@ -7,7 +7,7 @@ import torch as th
 import copy
 
 
-# Based (very) heavily on SubprocVecEnv from OpenAI Baselines
+# （非常）很大程度上基于 OpenAI Baselines 的 SubprocVecEnv
 # https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
 class ParallelRunner:
 
@@ -16,7 +16,7 @@ class ParallelRunner:
         self.logger = logger
         self.batch_size = self.args.batch_size_run
 
-        # Make subprocesses for the envs
+        # 为环境创建子进程
         self.parent_conns, self.worker_conns = zip(*[Pipe() for _ in range(self.batch_size)])
         env_fn = env_REGISTRY[self.args.env]
         worker_id2env_args = {}
@@ -66,7 +66,7 @@ class ParallelRunner:
     def reset(self):
         self.batch = self.new_batch()
 
-        # Reset the envs
+        # 重置环境
         for parent_conn in self.parent_conns:
             parent_conn.send(("reset", None))
 
@@ -75,7 +75,7 @@ class ParallelRunner:
             "avail_actions": [],
             "obs": []
         }
-        # Get the obs, state and avail_actions back
+        # 获取 obs、state 和 avail_actions
         for parent_conn in self.parent_conns:
             data = parent_conn.recv()
             pre_transition_data["state"].append(data["state"])
@@ -96,54 +96,54 @@ class ParallelRunner:
         self.mac.init_hidden(batch_size=self.batch_size)
         terminated = [False for _ in range(self.batch_size)]
         envs_not_terminated = [b_idx for b_idx, termed in enumerate(terminated) if not termed]
-        final_env_infos = []  # may store extra stats like battle won. this is filled in ORDER OF TERMINATION
+        final_env_infos = []  # 可存储战斗胜利等额外统计数据；按环境终止顺序填充
 
         while True:
 
-            # Pass the entire batch of experiences up till now to the agents
-            # Receive the actions for each agent at this timestep in a batch for each un-terminated env
+            # 将迄今为止的整批经验传递给智能体
+            # 对于每个未终止的环境，在此时间步批量接收每个智能体的动作
             
             actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, bs=envs_not_terminated, test_mode=test_mode)
             
             cpu_actions = actions.to("cpu").numpy()
 
-            # Update the actions taken
+            # 更新已采取的动作
             actions_chosen = {
                 "actions": actions.unsqueeze(1)
             }
             self.batch.update(actions_chosen, bs=envs_not_terminated, ts=self.t, mark_filled=False)
 
-            # Send actions to each env
+            # 向每个环境发送动作
             action_idx = 0
             for idx, parent_conn in enumerate(self.parent_conns):
-                if idx in envs_not_terminated: # We produced actions for this env
-                    if not terminated[idx]: # Only send the actions to the env if it hasn't terminated
+                if idx in envs_not_terminated: # 我们为该环境生成了动作
+                    if not terminated[idx]: # 仅当环境尚未终止时才将动作发送到环境
                         parent_conn.send(("step", cpu_actions[action_idx]))
-                    action_idx += 1 # actions is not a list over every env
+                    action_idx += 1 # actions 并不是每个环境的列表
 
-            # Update envs_not_terminated
+            # 更新 envs_not_terminated
             envs_not_terminated = [b_idx for b_idx, termed in enumerate(terminated) if not termed]
             all_terminated = all(terminated)
             if all_terminated:
                 break
 
-            # Post step data we will insert for the current timestep
+            # 插入当前时间步的后转换数据
             post_transition_data = {
                 "reward": [],
                 "terminated": []
             }
-            # Data for the next step we will insert in order to select an action
+            # 我们将插入下一步的数据以便选择动作
             pre_transition_data = {
                 "state": [],
                 "avail_actions": [],
                 "obs": []
             }
 
-            # Receive data back for each unterminated env
+            # 接收每个未终止环境的数据
             for idx, parent_conn in enumerate(self.parent_conns):
                 if not terminated[idx]:
                     data = parent_conn.recv()
-                    # Remaining data for this current timestep
+                    # 当前时间步的剩余数据
                     post_transition_data["reward"].append((data["reward"],))
 
                     episode_returns[idx] += data["reward"]
@@ -159,24 +159,24 @@ class ParallelRunner:
                     terminated[idx] = data["terminated"]
                     post_transition_data["terminated"].append((env_terminated,))
 
-                    # Data for the next timestep needed to select an action
+                    # 选择动作所需的下一个时间步的数据
                     pre_transition_data["state"].append(data["state"])
                     pre_transition_data["avail_actions"].append(data["avail_actions"])
                     pre_transition_data["obs"].append(data["obs"])
 
-            # Add post_transiton data into the batch
+            # 将 post_transiton 数据添加到批次中
             self.batch.update(post_transition_data, bs=envs_not_terminated, ts=self.t, mark_filled=False)
 
-            # Move onto the next timestep
+            # 进入下一个时间步
             self.t += 1
 
-            # Add the pre-transition data
+            # 添加动作选择前的数据
             self.batch.update(pre_transition_data, bs=envs_not_terminated, ts=self.t, mark_filled=True)
 
         if not test_mode:
             self.t_env += self.env_steps_this_run
 
-        # Get stats back for each env
+        # 获取每个环境的统计数据
         for parent_conn in self.parent_conns:
             parent_conn.send(("get_stats",None))
 
@@ -224,24 +224,24 @@ class ParallelRunner:
 
 
 def env_worker(remote, env_fn):
-    # Make environment
+    # 创建环境
     env = env_fn.x()
     while True:
         cmd, data = remote.recv()
         if cmd == "step":
             actions = data
-            # Take a step in the environment
+            # 在环境中迈出一步
             reward, terminated, env_info = env.step(actions)
-            # Return the observations, avail_actions and state to make the next action
+            # 返回观测、avail_actions 和状态以进行下一步动作
             state = env.get_state()
             avail_actions = env.get_avail_actions()
             obs = env.get_obs()
             remote.send({
-                # Data for the next timestep needed to pick an action
+                # 选择动作所需的下一个时间步的数据
                 "state": state,
                 "avail_actions": avail_actions,
                 "obs": obs,
-                # Rest of the data for the current timestep
+                # 当前时间步长的其余数据
                 "reward": reward,
                 "terminated": terminated,
                 "info": env_info
@@ -267,7 +267,7 @@ def env_worker(remote, env_fn):
 
 class CloudpickleWrapper():
     """
-    Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
+    使用 cloudpickle 序列化内容（否则 multiprocessing 会尝试使用 pickle）。
     """
     def __init__(self, x):
         self.x = x
@@ -277,4 +277,3 @@ class CloudpickleWrapper():
     def __setstate__(self, ob):
         import pickle
         self.x = pickle.loads(ob)
-

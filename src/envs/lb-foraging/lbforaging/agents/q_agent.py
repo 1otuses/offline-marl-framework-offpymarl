@@ -15,10 +15,10 @@ class QLearningTable:
     _DATA_FILE = "qtable.gz"
 
     def __init__(self, actions):
-        self.actions = actions  # a list
+        self.actions = actions  # 列表
 
         self.beta = 0.2
-        self.gamma = 0.9  # reward decay
+        self.gamma = 0.9  # 奖励衰减
         self.lambda_ = 0.9
         self.e_min = 0.1
 
@@ -35,10 +35,10 @@ class QLearningTable:
     def choose_action(self, observation):
         self.check_state_exist(observation)
 
-        # choose best action
+        # 选择最佳动作
         state_action = self.q_table.loc[observation, :]
 
-        # some actions have the same value
+        # 有些动作具有相同的价值
         # state_action = state_action.reindex(np.random.permutation(state_action.index))
         max_reward = state_action.max()
 
@@ -82,7 +82,7 @@ class QLearningTable:
 
     def check_state_exist(self, state):
         if state not in self.q_table.index:
-            # append new state to q table
+            # 将新状态追加到 q 表
             self.q_table = self.q_table.append(
                 pd.Series(
                     [0] * len(self.actions), index=self.q_table.columns, name=state
@@ -106,7 +106,7 @@ class QAgent(Agent):
         self._prev_state = None
 
         self.e_1 = 0
-        self.e_2 = 0.2  # expand stage
+        self.e_2 = 0.2  # 展开阶段
 
     def expand(self, obs, depth):
 
@@ -118,7 +118,7 @@ class QAgent(Agent):
 
         for i, player in enumerate(env.players):
             if i == player_no:
-                continue  # we will control this player ourselves
+                continue  # 我们将自己控制这个玩家
             else:
                 player.set_controller(H1(player))
 
@@ -137,7 +137,7 @@ class QAgent(Agent):
                 else:
                     action = player.step(observations[i])
 
-                # make sure the action is valid (if not replace with random action):
+                # 确保动作有效（否则替换为随机动作）：
                 action = (
                     action
                     if action in observations[i].actions
@@ -150,7 +150,7 @@ class QAgent(Agent):
 
             past_score = observations[player_no].players[player_no].score
 
-            observations = env.step(actions)  # perform the joint action
+            observations = env.step(actions)  # 执行联合动作
 
             reward = observations[player_no].players[player_no].score - past_score
 
@@ -175,7 +175,7 @@ class QAgent(Agent):
                 actions=list(product(*repeat(Action, len(obs.players))))
             )
 
-        # observe current state s
+        # 观测当前状态 s
         state = self._make_state(obs)
 
         if self.history and self._prev_state:

@@ -13,16 +13,16 @@ class QTranBase(nn.Module):
         self.n_agents = args.n_agents
         self.n_actions = args.n_actions
         self.state_dim = int(np.prod(args.state_shape))
-        self.arch = self.args.qtran_arch # QTran architecture
+        self.arch = self.args.qtran_arch # QTran架构
 
         self.embed_dim = args.mixing_embed_dim
 
         # Q(s,u)
         if self.arch == "coma_critic":
-            # Q takes [state, u] as input
+            # Q 将 [state, u] 作为输入
             q_input_size = self.state_dim + (self.n_agents * self.n_actions)
         elif self.arch == "qtran_paper":
-            # Q takes [state, agent_action_observation_encodings]
+            # Q 采用 [state, agent_action_observation_encodings]
             q_input_size = self.state_dim + self.args.rnn_hidden_dim + self.n_actions
         else:
             raise Exception("{} is not a valid QTran architecture".format(self.arch))
@@ -75,24 +75,24 @@ class QTranBase(nn.Module):
 
         if self.arch == "coma_critic":
             if actions is None:
-                # Use the actions taken by the agents
+                # 使用智能体采取的动作
                 actions = batch["actions_onehot"].reshape(bs * ts, self.n_agents * self.n_actions)
             else:
-                # It will arrive as (bs, ts, agents, actions), we need to reshape it
+                # 输入形状为 (bs, ts, n_agents, n_actions)，需要重整形
                 actions = actions.reshape(bs * ts, self.n_agents * self.n_actions)
             inputs = th.cat([states, actions], dim=1)
         elif self.arch == "qtran_paper":
             if actions is None:
-                # Use the actions taken by the agents
+                # 使用智能体采取的动作
                 actions = batch["actions_onehot"].reshape(bs * ts, self.n_agents, self.n_actions)
             else:
-                # It will arrive as (bs, ts, agents, actions), we need to reshape it
+                # 输入形状为 (bs, ts, n_agents, n_actions)，需要重整形
                 actions = actions.reshape(bs * ts, self.n_agents, self.n_actions)
 
             hidden_states = hidden_states.reshape(bs * ts, self.n_agents, -1)
             agent_state_action_input = th.cat([hidden_states, actions], dim=2)
             agent_state_action_encoding = self.action_encoding(agent_state_action_input.reshape(bs * ts * self.n_agents, -1)).reshape(bs * ts, self.n_agents, -1)
-            agent_state_action_encoding = agent_state_action_encoding.sum(dim=1) # Sum across agents
+            agent_state_action_encoding = agent_state_action_encoding.sum(dim=1) # 跨智能体的总和
 
             inputs = th.cat([states, agent_state_action_encoding], dim=1)
 
@@ -102,4 +102,3 @@ class QTranBase(nn.Module):
         v_outputs = self.V(states)
 
         return q_outputs, v_outputs
-

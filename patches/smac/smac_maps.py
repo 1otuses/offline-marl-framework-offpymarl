@@ -518,7 +518,7 @@ map_param_registry = {
         "unit_type_bits": 0,
         "map_type": "colossus",
     },
-    ### new added 
+    ### 新添加的
     "1s1z": {
         "n_agents": 2,
         "n_enemies": 2,

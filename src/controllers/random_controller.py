@@ -1,7 +1,7 @@
 from torch.distributions import Categorical
 
 
-# This multi-agent controller shares parameters between agents
+# 该多智能体控制器在智能体之间共享参数
 class RandomMAC:
     def __init__(self, scheme, groups, args):
         self.n_agents = args.n_agents
@@ -9,7 +9,7 @@ class RandomMAC:
         self.agent_output_type = args.agent_output_type
 
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
-        # Only select actions for the selected batch elements in bs
+        # 仅对 bs 中选定的批次元素选择动作
         avail_actions = ep_batch["avail_actions"][:, t_ep]
         chosen_actions = Categorical(probs=avail_actions.float()).sample().long() 
         # [0, 1, 1, ...], in Categorical, do "probs/probs.sum(-1, keepdim=True) "

@@ -13,7 +13,7 @@ class Mixer(nn.Module):
         self.embed_dim = args.mixing_embed_dim
         self.input_dim = self.state_dim = int(np.prod(args.state_shape)) 
 
-        self.abs = abs # monotonicity constraint
+        self.abs = abs # 单调性约束
         self.qmix_pos_func = getattr(self.args, "qmix_pos_func", "abs")
         
         # hyper w1 b1
@@ -35,17 +35,17 @@ class Mixer(nn.Module):
                 orthogonal_init_(m)
 
     def forward(self, qvals, states):
-        # reshape
+        # 重整形
         b, t, _ = qvals.size()
         
         qvals = qvals.reshape(b * t, 1, self.n_agents)
         states = states.reshape(-1, self.state_dim)
 
-        # First layer
+        # 第一层
         w1 = self.hyper_w1(states).view(-1, self.n_agents, self.embed_dim) # b * t, n_agents, emb
         b1 = self.hyper_b1(states).view(-1, 1, self.embed_dim)
         
-        # Second layer
+        # 第二层
         w2 = self.hyper_w2(states).view(-1, self.embed_dim, 1) # b * t, emb, 1
         b2= self.hyper_b2(states).view(-1, 1, 1)
         
@@ -53,7 +53,7 @@ class Mixer(nn.Module):
             w1 = self.pos_func(w1)
             w2 = self.pos_func(w2)
             
-        # Forward
+        # 前向计算
         hidden = F.elu(th.matmul(qvals, w1) + b1) # b * t, 1, emb
         y = th.matmul(hidden, w2) + b2 # b * t, 1, 1
         

@@ -18,7 +18,7 @@ class Action(Enum):
     EAST = 4
 
 class CellEntity(Enum):
-    # entity encodings for grid observations
+    # 网格观测的实体编码
     EMPTY = 0
     LANDMARK = 1
     AGENT = 2
@@ -136,7 +136,7 @@ task_id2config = {
 
 class EasyGridMPEEnv(MultiAgentEnv):
     """
-    Class for GridMPE.
+    GridMPE 环境类。
     """
 
     action_set = [Action.NORTH, Action.SOUTH, Action.WEST, Action.EAST]
@@ -314,7 +314,7 @@ class EasyGridMPEEnv(MultiAgentEnv):
                     player.position[1] < self.cols - 1
             )
 
-        # Should not get here!!!
+        # 不应执行到这里！
         self.logger.error("Undefined action {} from {}".format(action, player.name))
         raise ValueError("Undefined action")
 
@@ -362,7 +362,7 @@ class EasyGridMPEEnv(MultiAgentEnv):
         return 2 * (self.n_agents + self.n_landmarks)
     
     def get_total_actions(self):
-        # 5 possible actions
+        # 5 种可能的动作
         return 5
 
     def get_avail_actions(self):
@@ -379,9 +379,9 @@ class EasyGridMPEEnv(MultiAgentEnv):
 
     def reset(self):
         self.field = np.zeros(self.field_size, np.int32)
-        # spawn players on the board
+        # 在棋盘上生成玩家
         self.spawn_players()    
-        # spawn the food on the board
+        # 在板上生成食物
         self.landmark_locs = [None for _ in range(self.n_landmarks)]
         self.spawn_landmarks()
         
@@ -404,7 +404,7 @@ class EasyGridMPEEnv(MultiAgentEnv):
             for p, a in zip(self.players, actions)
         ]
 
-        # check if actions are valid
+        # 检查动作是否有效
         for i, (player, action) in enumerate(zip(self.players, actions)):
             if action not in self._valid_actions[player]:
                 self.logger.info(
@@ -414,11 +414,11 @@ class EasyGridMPEEnv(MultiAgentEnv):
                 )
                 actions[i] = Action.NONE
 
-        # move players
-        # if two or more players try to move to the same location they all fail
+        # 移动玩家
+        # 如果两个或更多玩家尝试移动到同一位置，则全部移动失败
         collisions = defaultdict(list)
 
-        # so check for collisions
+        # 所以检查是否有碰撞
         for player, action in zip(self.players, actions):
             if action == Action.NONE:
                 collisions[player.position].append(player)
@@ -431,12 +431,12 @@ class EasyGridMPEEnv(MultiAgentEnv):
             elif action == Action.EAST:
                 collisions[(player.position[0], player.position[1] + 1)].append(player)
     
-        # Change One: we allow collision, or to say overlap !!!
-        # and do movements for non colliding players
+        # 改变一：我们允许碰撞，或者说重叠！
+        # 移动未发生碰撞的玩家
         for k, v in collisions.items():
-            # we allow agents to overlap
+            # 我们允许智能体重叠
             for p in v:
-                # v is a list of players
+                # v 是玩家列表
                 p.position = k
 
         _succeed = self._succeed()
@@ -445,7 +445,7 @@ class EasyGridMPEEnv(MultiAgentEnv):
             _succeed or self.episode_limit <= self.current_step
         )
         
-        # update valid moves
+        # 更新有效动作
         self._gen_valid_moves() 
 
         return reward, done, {"battle_won": _succeed}

@@ -26,36 +26,36 @@ class SelfAttention(nn.Module):
         queries = self.toqueries(x).view(b, t, h, e)
         values = self.tovalues(x).view(b, t, h, e)
 
-        # compute scaled dot-product self-attention
+        # 计算缩放点积自注意力
 
-        # - fold heads into the batch dimension
+        # - 将头部折叠到批量尺寸中
         keys = keys.transpose(1, 2).contiguous().view(b * h, t, e)
         queries = queries.transpose(1, 2).contiguous().view(b * h, t, e)
         values = values.transpose(1, 2).contiguous().view(b * h, t, e)
 
         queries = queries / (e ** (1 / 4))
         keys = keys / (e ** (1 / 4))
-        # - Instead of dividing the dot products by sqrt(e), we scale the keys and values.
-        #   This should be more memory efficient
+        # - 我们不是将点积除以 sqrt(e)，而是缩放键和值。
+        #   这样应当更节省内存
 
-        # - get dot product of queries and keys, and scale
+        # - 获取查询和键的点积以及比例
         dot = torch.bmm(queries, keys.transpose(1, 2))
 
         assert dot.size() == (b * h, t, t)
 
-        if self.mask:  # mask out the upper half of the dot matrix, excluding the diagonal
+        if self.mask:  # 屏蔽掉点阵的上半部分，不包括对角线
             mask_(dot, maskval=float('-inf'), mask_diagonal=False)
 
         if mask is not None:
             dot = dot.masked_fill(mask == 0, -1e9)
 
         dot = F.softmax(dot, dim=2)
-        # - dot now has row-wise self-attention probabilities
+        # - 点现在具有逐行自注意力概率
 
-        # apply the self attention to the values
+        # 将自注意力应用到 value 上
         out = torch.bmm(dot, values).view(b, h, t, e)
 
-        # swap h, t back, unify heads
+        # 将 h、t 交换回来，统一头部
         out = out.transpose(1, 2).contiguous().view(b, t, h * e)
 
         return self.unifyheads(out)
@@ -97,7 +97,7 @@ class TransformerBlock(nn.Module):
         return x, mask
 
 
-# Transformer (Encoder)
+# Transformer（编码器）
 class Transformer(nn.Module): 
 
     def __init__(self, emb, heads, depth, output_dim):

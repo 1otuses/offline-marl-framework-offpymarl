@@ -23,7 +23,7 @@ class EpisodeRunner:
         self.train_stats = {}
         self.test_stats = {}
 
-        # Log the first run
+        # 记录第一次运行
         self.log_train_stats_t = -1000000
 
     def setup(self, scheme, groups, preprocess, mac):
@@ -62,8 +62,8 @@ class EpisodeRunner:
 
             self.batch.update(pre_transition_data, ts=self.t)
 
-            # Pass the entire batch of experiences up till now to the agents
-            # Receive the actions for each agent at this timestep in a batch of size 1
+            # 将迄今为止的整批经验传递给智能体
+            # 接收每个智能体在此时间步的批量大小为 1 的动作
             actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
 
             reward, terminated, env_info = self.env.step(actions[0])
@@ -86,7 +86,7 @@ class EpisodeRunner:
         }
         self.batch.update(last_data, ts=self.t)
 
-        # Select actions in the last stored state
+        # 选择上次存储状态下的动作
         actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env, test_mode=test_mode)
         
         self.batch.update({"actions": actions}, ts=self.t)

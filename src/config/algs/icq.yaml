@@ -1,4 +1,4 @@
-# --- ICQ specific parameters ---
+# --- ICQ 具体参数 ---
 
 action_selector: "multinomial"
 epsilon_start: .5
@@ -16,18 +16,18 @@ batch_size: 16
 
 
 env_args:
-  state_last_action: True # critic adds last action internally
+  state_last_action: True # Critic 在内部添加了最后一个动作
 
-# update the target network every {} training steps
+# 每 {} 个训练步更新一次目标网络
 target_update_interval_or_tau: 600
-step: 5 #steps for tree back up diagram  (adjustable based on # of agents)
+step: 5 #树回溯图的步数（可根据智能体数量调整）
 
 
 lr: 0.0005
 critic_lr: 0.0001
 td_lambda: 0.93
 
-# use qmix
+# 使用 qmix
 mixing_embed_dim: 32
 hypernet_layers: 1
 
@@ -36,10 +36,10 @@ optim_type: "rmsprop"
 icq_alpha: 0.1
 icq_beta: 1000
 
-# use COMA
+# 使用 COMA
 agent_output_type: "pi_logits"
 learner: "icq_learner"
-q_nstep: 0  # 0 corresponds to default Q, 1 is r + gamma*Q, etc
+q_nstep: 0  # 0 表示默认 Q，1 表示 r + gamma*Q，依此类推
 
 name: "icq"
 

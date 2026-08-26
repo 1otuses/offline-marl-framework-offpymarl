@@ -16,7 +16,7 @@ import mpe.scenarios as scenarios
 
 class MPEWrapperEnv(PyMARLMultiAgentEnv):
     """
-    only support partial mpe scenarios
+    仅支持部分 MPE 场景。
     """
     def __init__(self,
                 seed: int,
@@ -28,21 +28,21 @@ class MPEWrapperEnv(PyMARLMultiAgentEnv):
                 wrapper: str=None,
                 key: str=None,
                 pretrained_wrapper: str=None):
-        # build MPE Env
+        # 构建 MPE 环境
         scenario = scenarios.load(scenario_name + ".py").Scenario()
         world = scenario.make_world(num_good_agents=num_good_agents, num_adversaries=num_adversaries, num_landmarks=num_landmarks)
         self._env = MPEMultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation)
-        # wrap MPE Env
+        # 包裹 MPE 环境
         if wrapper is not None:
             self._env = wrapper_REGISTRY[wrapper](self._env, num_good_agents=num_good_agents, num_adversaries=num_adversaries, num_landmarks=num_landmarks)
 
-        # get nof_agents and nof_actions
+        # 获取 nof_agents 和 nof_actions
         self.n_agents = self._env.n_agents
         self.n_actions = self.get_total_actions()
-        # set random seed
+        # 设置随机种子
         np.random.seed(seed)
         random.seed(seed)
-        # set some attributes
+        # 设置一些属性
         self._episode_steps = 0
         self.episode_limit = time_limit
 
@@ -51,25 +51,25 @@ class MPEWrapperEnv(PyMARLMultiAgentEnv):
             self.obs, reward_n, done_n, info_n = self._env.step(actions)
         else:
             self.obs, reward_n, done_n, info_n = self._env.step(actions.cpu().numpy())
-        # get wrapper reward, terminated
+        # 获取封装后的奖励和终止标记
         self.obs, reward, terminated = tuple(self.obs), reward_n[0], np.all(done_n)
-        # schedule episode_steps
+        # 设置 episode_steps
         self._episode_steps += 1
         if self._episode_steps >= self.episode_limit:
-            # guarantee episode steps are within limit
+            # 保证回合步数在限制范围内
             terminated = True
         return reward, terminated, {}
 
     def get_obs(self):
-        """Returns all agent observations in a tuple"""
+        """ 返回元组中的所有智能体观测 """
         return self.obs
     
     def get_obs_agent(self, agent_id):
-        """Returns observation for agent_id"""
+        """ 返回 agent_id 的观测 """
         return np.array(self.obs[agent_id])
 
     def get_obs_size(self):
-        """Returns the shape of the observation"""
+        """ 返回观测的形状 """
         obs_shapes = [np.prod(item.shape).item() for item in self._env.observation_space]
         all_equal = len(set(obs_shapes)) == 1
         if not all_equal:
@@ -77,14 +77,14 @@ class MPEWrapperEnv(PyMARLMultiAgentEnv):
         return obs_shapes[0]
 
     def get_state(self):
-        """Concatenate all agent observations as state"""
+        """ 将所有智能体观测拼接为状态 """
         state = self.obs[0]
         for i in range(self.n_agents - 1):
             state = np.concatenate([state, self.obs[i + 1]])
         return state
 
     def get_state_size(self):
-        """Returns state shape"""
+        """ 返回状态形状 """
         return self.get_obs_size() * self.n_agents
     
     def get_avail_actions(self):
@@ -102,7 +102,7 @@ class MPEWrapperEnv(PyMARLMultiAgentEnv):
         all_equal = len(set(action_shapes)) == 1
         if not all_equal:
             raise Exception("Agents' action shapes are not all equal in chosen scenario")
-        # return action shape
+        # 返回动作形状
         return action_shapes[0]
 
     def reset(self):
@@ -136,9 +136,7 @@ class MPEWrapperEnv(PyMARLMultiAgentEnv):
         return stats
         
     def get_dynamic_env_info(self):
-        """Returns the information that can help rule-based agents to do
-           decisions.
-        """
+        """返回可帮助基于规则的智能体进行决策的信息。"""
         dynamic_env_info = {
             "state": self.get_state(),
         }
@@ -149,4 +147,3 @@ if __name__ == "__main__":
     mpe_env = MPEWrapperEnv(scenario_name="configurable_tag", seed=7, time_limit=10, wrapper="frozen_tag")
     env_info = mpe_env.get_env_info()
     print(env_info)
-    

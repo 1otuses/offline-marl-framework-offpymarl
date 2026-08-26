@@ -17,7 +17,7 @@ class HBAAgent(QAgent):
 
         self.type_space = [H1, H2, H3, H4]
 
-        N = 2  # todo N is number of agents
+        N = 2  # TODO：N 为智能体数量
         D = len(self.type_space)
 
         self.prev_likelihood = []
@@ -114,7 +114,7 @@ class HBAAgent(QAgent):
 
         for i, player in enumerate(env.players):
             if i == player_no:
-                continue  # we will control this player ourselves
+                continue  # 我们将自己控制这个玩家
             else:
                 likely_type = self.type_space[np.argmax(self.belief[i, :])]
                 player.set_controller(likely_type(player))
@@ -134,7 +134,7 @@ class HBAAgent(QAgent):
                 else:
                     action = player.step(observations[i])
 
-                # make sure the action is valid (if not replace with random action):
+                # 确保动作有效（否则替换为随机动作）：
                 action = (
                     action
                     if action in observations[i].actions
@@ -147,7 +147,7 @@ class HBAAgent(QAgent):
 
             past_score = observations[player_no].players[player_no].score
 
-            observations = env.step(actions)  # perform the joint action
+            observations = env.step(actions)  # 执行联合动作
 
             reward = observations[player_no].players[player_no].score - past_score
 

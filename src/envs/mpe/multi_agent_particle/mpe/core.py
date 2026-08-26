@@ -1,100 +1,100 @@
 import numpy as np
 
-# physical/external base state of all entites
+# 所有实体的物理/外部基础状态
 class EntityState(object):
     def __init__(self):
-        # physical position
+        # 物理位置
         self.p_pos = None
-        # physical velocity
+        # 物理速度
         self.p_vel = None
 
-# state of agents (including communication and internal/mental state)
+# 智能体状态（包括通信和内部/心理状态）
 class AgentState(EntityState):
     def __init__(self):
         super(AgentState, self).__init__()
-        # communication utterance
+        # 通信量
         self.c = None
 
-# action of the agent
+# 智能体的动作
 class Action(object):
     def __init__(self):
-        # physical action
+        # 物理动作
         self.u = None
-        # communication action
+        # 通信动作
         self.c = None
 
-# properties and state of physical world entity
+# 物理世界实体的属性和状态
 class Entity(object):
     def __init__(self):
-        # name 
+        # 名称
         self.name = ''
-        # properties:
+        # 属性：
         self.size = 0.050
-        # entity can move / be pushed
+        # 实体可以移动/被推动
         self.movable = False
-        # entity collides with others
+        # 实体与其他实体发生碰撞
         self.collide = True
-        # material density (affects mass)
+        # 材料密度（影响质量）
         self.density = 25.0
-        # color
+        # 颜色
         self.color = None
-        # max speed and accel
+        # 最大速度和加速度
         self.max_speed = None
         self.accel = None
-        # state
+        # 状态
         self.state = EntityState()
-        # mass
+        # 质量
         self.initial_mass = 1.0
 
     @property
     def mass(self):
         return self.initial_mass
 
-# properties of landmark entities
+# 地标实体的属性
 class Landmark(Entity):
      def __init__(self):
         super(Landmark, self).__init__()
 
-# properties of agent entities
+# 智能体实体的属性
 class Agent(Entity):
     def __init__(self):
         super(Agent, self).__init__()
-        # agents are movable by default
+        # 默认情况下智能体是可移动的
         self.movable = True
-        # cannot send communication signals
+        # 无法发送通信信号
         self.silent = False
-        # cannot observe the world
+        # 无法观测世界
         self.blind = False
-        # physical motor noise amount
+        # 物理执行器噪声幅度
         self.u_noise = None
-        # communication noise amount
+        # 通信噪声幅度
         self.c_noise = None
-        # control range
+        # 控制范围
         self.u_range = 1.0
-        # state
+        # 状态
         self.state = AgentState()
-        # action
+        # 动作
         self.action = Action()
-        # script behavior to execute
+        # 要执行的脚本行为
         self.action_callback = None
 
-# multi-agent world
+# 多智能体世界
 class World(object):
     def __init__(self):
-        # list of agents and entities (can change at execution-time!)
+        # 智能体和实体列表（可以在执行时更改！）
         self.agents = []
         self.landmarks = []
-        # communication channel dimensionality
+        # 通信通道维度
         self.dim_c = 0
-        # position dimensionality
+        # 位置维度
         self.dim_p = 2
-        # color dimensionality
+        # 颜色维度
         self.dim_color = 3
-        # simulation timestep
+        # 模拟时间步长
         self.dt = 0.1
-        # physical damping
+        # 物理阻尼
         self.damping = 0.25
-        # contact response parameters
+        # 接触响应参数
         self.contact_force = 1e+2
         self.contact_margin = 1e-3
 
@@ -103,50 +103,50 @@ class World(object):
     def seed(self, seed):
         self.np_random = np.random.RandomState(seed)
 
-    # return all entities in the world
+    # 返回世界中的所有实体
     @property
     def entities(self):
         return self.agents + self.landmarks
 
-    # return all agents controllable by external policies
+    # 返回所有可由外部策略控制的智能体
     @property
     def policy_agents(self):
         return [agent for agent in self.agents if agent.action_callback is None]
 
-    # return all agents controlled by world scripts
+    # 返回所有由世界脚本控制的智能体
     @property
     def scripted_agents(self):
         return [agent for agent in self.agents if agent.action_callback is not None]
 
-    # update state of the world
+    # 更新世界状态
     def step(self):
-        # set actions for scripted agents 
+        # 为脚本化智能体设置动作
         for agent in self.scripted_agents:
             agent.action = agent.action_callback(agent, self)
-        # gather forces applied to entities
+        # 汇总施加到实体上的力
         p_force = [None] * len(self.entities)
-        # apply agent physical controls
+        # 应用智能体物理控制
         p_force = self.apply_action_force(p_force)
-        # apply environment forces
+        # 施加环境力
         p_force = self.apply_environment_force(p_force)
-        # integrate physical state
+        # 整合物理状态
         self.integrate_state(p_force)
-        # update agent state
+        # 更新智能体状态
         for agent in self.agents:
             self.update_agent_state(agent)
 
-    # gather agent action forces
+    # 汇总智能体的动作力
     def apply_action_force(self, p_force):
-        # set applied forces
+        # 设置施加的力
         for i,agent in enumerate(self.agents):
             if agent.movable:
                 noise = np.random.randn(*agent.action.u.shape) * agent.u_noise if agent.u_noise else 0.0
                 p_force[i] = agent.action.u + noise                
         return p_force
 
-    # gather physical forces acting on entities
+    # 汇总作用于实体的物理力
     def apply_environment_force(self, p_force):
-        # simple (but inefficient) collision response
+        # 简单（但低效）的碰撞响应
         for a,entity_a in enumerate(self.entities):
             for b,entity_b in enumerate(self.entities):
                 if(b <= a): continue
@@ -159,7 +159,7 @@ class World(object):
                     p_force[b] = f_b + p_force[b]        
         return p_force
 
-    # integrate physical state
+    # 整合物理状态
     def integrate_state(self, p_force):
         for i,entity in enumerate(self.entities):
             if not entity.movable: continue
@@ -174,25 +174,25 @@ class World(object):
             entity.state.p_pos += entity.state.p_vel * self.dt
 
     def update_agent_state(self, agent):
-        # set communication state (directly for now)
+        # 设置通信状态（目前直接设置）
         if agent.silent:
             agent.state.c = np.zeros(self.dim_c)
         else:
             noise = np.random.randn(*agent.action.c.shape) * agent.c_noise if agent.c_noise else 0.0
             agent.state.c = agent.action.c + noise      
 
-    # get collision forces for any contact between two entities
+    # 获取两个实体之间任何接触的碰撞力
     def get_collision_force(self, entity_a, entity_b):
         if (not entity_a.collide) or (not entity_b.collide):
-            return [None, None] # not a collider
+            return [None, None] # 不参与碰撞
         if (entity_a is entity_b):
-            return [None, None] # don't collide against itself
-        # compute actual distance between entities
+            return [None, None] # 不与自身发生碰撞
+        # 计算实体之间的实际距离
         delta_pos = entity_a.state.p_pos - entity_b.state.p_pos
         dist = np.sqrt(np.sum(np.square(delta_pos)))
-        # minimum allowable distance
+        # 最小允许距离
         dist_min = entity_a.size + entity_b.size
-        # softmax penetration
+        # Softmax 平滑穿透量
         k = self.contact_margin
         penetration = np.logaddexp(0, -(dist - dist_min)/k)*k
         force = self.contact_force * delta_pos / dist * penetration

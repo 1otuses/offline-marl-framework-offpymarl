@@ -1,42 +1,42 @@
 class MultiAgentEnv(object):
 
     def step(self, actions):
-        """ Returns reward, terminated, info """
+        """ 返回奖励、终止、信息 """
         raise NotImplementedError
 
     def get_obs(self):
-        """ Returns all agent observations in a list """
+        """ 返回列表中的所有智能体观测 """
         raise NotImplementedError
 
     def get_obs_agent(self, agent_id):
-        """ Returns observation for agent_id """
+        """ 返回 agent_id 的观测 """
         raise NotImplementedError
 
     def get_obs_size(self):
-        """ Returns the shape of the observation """
+        """ 返回观测的形状 """
         raise NotImplementedError
 
     def get_state(self):
         raise NotImplementedError
 
     def get_state_size(self):
-        """ Returns the shape of the state"""
+        """ 返回状态的形状 """
         raise NotImplementedError
 
     def get_avail_actions(self):
         raise NotImplementedError
 
     def get_avail_agent_actions(self, agent_id):
-        """ Returns the available actions for agent_id """
+        """ 返回agent_id的可用动作 """
         raise NotImplementedError
 
     def get_total_actions(self):
-        """ Returns the total number of actions an agent could ever take """
-        # TODO: This is only suitable for a discrete 1 dimensional action space for each agent
+        """ 返回智能体可以执行的动作总数 """
+        # TODO：这仅适用于每个智能体的离散一维动作空间
         raise NotImplementedError
 
     def reset(self):
-        """ Returns initial observations and states"""
+        """ 返回初始观测和状态 """
         raise NotImplementedError
 
     def render(self):

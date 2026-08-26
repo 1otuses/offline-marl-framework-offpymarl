@@ -42,7 +42,7 @@ class CFCQLearner:
                 self.optimiser = Adam(params=self.params, lr=self.args.lr, weight_decay=self.args.weight_decay)
             case _:
                 raise ValueError("Invalid optimiser type", self.args.optim_type)
-        # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
+        # 深度复制有点浪费（例如重复动作选择器），但应该适用于任何 MAC
         self.target_mac = copy.deepcopy(mac)
 
         self.log_stats_t = -self.args.learner_log_interval - 1
@@ -131,29 +131,29 @@ class CFCQLearner:
             self.rew_ms.update(rewards)
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
         
-        # Calculate estimated Q-Values
+        # 计算估计的 Q 值
         mac_out = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
             agent_outs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
-        mac_out = th.stack(mac_out, dim=1)  # Concat over time #(bs, T-1, n_agents, n_ac)
+        mac_out = th.stack(mac_out, dim=1)  # 沿时间维拼接 #(bs, T-1, n_agents, n_ac)
         
         mac_out[avail_actions == 0] = -9999999
-        # Pick the Q-Values for the actions taken by each agent
-        chosen_action_na_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
+        # 为每个智能体所采取的动作选择 Q 值
+        chosen_action_na_qvals = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # 移除最后一个维度
         
-        # Calculate the Q-Values necessary for the target
+        # 计算目标所需的 Q 值
         target_mac_out = []
         self.target_mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
             target_agent_outs = self.target_mac.forward(batch, t=t)
             target_mac_out.append(target_agent_outs)
         
-        # We don't need the first timesteps Q-Value estimate for calculating targets
-        target_mac_out = th.stack(target_mac_out, dim=1)  # Concat across time
+        # 计算目标值时不需要首个时间步的 Q 值估计
+        target_mac_out = th.stack(target_mac_out, dim=1)  # 沿时间维拼接
 
-        # Mask out unavailable actions
+        # 屏蔽不可用的动作
         target_mac_out[avail_actions == 0] = -9999999
         
         mac_out_detach = mac_out.clone().detach()
@@ -185,15 +185,15 @@ class CFCQLearner:
 
         mask = mask.expand_as(td_error) # (bs, T, )
 
-        # 0-out the targets that came from padded data
+        # 将由填充数据产生的目标值清零
         masked_td_error = td_error * mask
 
-        # Normal L2 loss, take mean over actual data
+        # 标准 L2 损失，对实际数据取平均值
         td_loss = (masked_td_error ** 2).sum() / mask.sum()
 
         
         
-        # CF-CQL loss
+        # CF-CQL损失
         total_random_actions = actions
         lambda_mask = th.ones_like(actions).squeeze(-1) / self.n_agents
         if self.need_train_behaviour:
@@ -302,7 +302,7 @@ class CFCQLearner:
 
     def load_models(self, path):
         self.mac.load_models(path)
-        # Not quite right but I don't want to save target networks
+        # 不太正确，但我不想保存目标网络
         self.target_mac.load_models(path)
         if self.mixer is not None:
             self.mixer.load_state_dict(th.load("{}/mixer.th".format(path), map_location=lambda storage, loc: storage))
@@ -316,4 +316,3 @@ class CFCQLearner:
     def load_behaviour_model(self, path):
         self.behaviour_mac.load_models(path)
         self.behaviour_optimiser.load_state_dict(th.load("{}/behaviour_opt.th".format(path), map_location=lambda storage, loc: storage))
-                

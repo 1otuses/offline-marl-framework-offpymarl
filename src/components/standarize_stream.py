@@ -1,5 +1,5 @@
 """
-Taken from: https://github.com/semitable/fast-marl
+来源：https://github.com/semitable/fast-marl
 """
 
 import torch
@@ -9,7 +9,7 @@ from typing import Tuple
 class RunningMeanStd(object):
     def __init__(self, epsilon: float = 1e-4, shape: Tuple[int, ...] = (), device="cpu"):
         """
-        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+        参考：https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
         """
         self.mean = torch.zeros(shape, dtype=torch.float32, device=device)
         self.var = torch.ones(shape, dtype=torch.float32, device=device)

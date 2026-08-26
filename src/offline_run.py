@@ -18,7 +18,7 @@ from components.transforms import OneHot
 
 def run(_run, _config, _log):
 
-    # check args sanity
+    # 检查参数有效性
     print(_config["use_cuda"])
     _config = args_sanity_check(_config, _log)
     
@@ -41,7 +41,7 @@ def run(_run, _config, _log):
     
     
     if args.use_tensorboard and not args.evaluate:
-        # only log tensorboard when in training mode
+        # 仅在训练模式下记录 TensorBoard 日志
         tb_exp_direc = os.path.join(results_save_dir, 'logs')
         logger.setup_tb(tb_exp_direc)
         
@@ -53,20 +53,20 @@ def run(_run, _config, _log):
         wandb_exp_direc = os.path.join(results_save_dir, 'logs')
         logger.setup_wandb(wandb_exp_direc, project=args.wandb_project_name, name=wandb_run_name,
                            run_id=args.resume_id, config=args)
-    # write config file
+    # 写入配置文件
     config_str = json.dumps(vars(args), indent=4)
     with open(os.path.join(results_save_dir, "config.json"), "w") as f:
         f.write(config_str)
-    # set model save dir
+    # 设置模型保存目录
     args.model_save_dir = os.path.join(results_save_dir, 'models')
 
-    # sacred is on by default
+    # 默认启用 Sacred
     logger.setup_sacred(_run)
 
-    # Run and train
+    # 运行并训练
     run_sequential(args=args, logger=logger)
 
-    # Clean up after finishing
+    # 完成后清理资源
     print("Exiting Main")
 
     print("Stopping all threads")
@@ -78,7 +78,7 @@ def run(_run, _config, _log):
 
     print("Exiting script")
 
-    # Making sure framework really exits
+    # 确保框架进程真正退出
     os._exit(os.EX_OK)
 
 def evaluate_sequential(args, runner):
@@ -93,17 +93,17 @@ def evaluate_sequential(args, runner):
 
 
 def run_sequential(args, logger):
-    # In offline training, we use t_max to denote iterations
+    # 在离线训练中，我们使用 t_max 来表示迭代次数
     
-    # Init runner so we can get env info
+    # 初始化运行器以便我们可以获得环境信息
     runner = r_REGISTRY[args.runner](args=args, logger=logger)
 
-    # Set up schemes and groups here
+    # 在这里设置方案和组
     env_info = runner.get_env_info()
     for k, v in env_info.items():
         setattr(args, k, v)
 
-    # Default/Base scheme
+    # 默认/基本方案
     scheme = {
         "state": {"vshape": env_info["state_shape"]},
         "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
@@ -123,13 +123,13 @@ def run_sequential(args, logger):
                           preprocess=preprocess,
                           device="cpu" if args.buffer_cpu_only else args.device)
 
-    # Setup multiagent controller here
+    # 在这里设置多智能体控制器
     mac = mac_REGISTRY[args.mac](buffer.scheme, groups, args)
 
-    # Give runner the scheme
+    # 将数据方案交给运行器
     runner.setup(scheme=scheme, groups=groups, preprocess=preprocess, mac=mac)
 
-    # Learner
+    # 学习器
     learner = le_REGISTRY[args.learner](mac, buffer.scheme, logger, args)
 
     if args.use_cuda:
@@ -145,18 +145,18 @@ def run_sequential(args, logger):
             logger.console_logger.info("Checkpoint directiory {} doesn't exist".format(args.checkpoint_path))
             return
 
-        # Go through all files in args.checkpoint_path
+        # 遍历 args.checkpoint_path 中的所有文件
         for name in os.listdir(args.checkpoint_path):
             full_name = os.path.join(args.checkpoint_path, name)
-            # Check if they are dirs the names of which are numbers
+            # 检查名称为数字的目录
             if os.path.isdir(full_name) and name.isdigit():
                 timesteps.append(int(name))
 
         if args.load_step == 0:
-            # choose the max timestep
+            # 选择最大时间步长
             timestep_to_load = max(timesteps)
         else:
-            # choose the timestep closest to load_step
+            # 选择最接近 load_step 的时间步
             timestep_to_load = min(timesteps, key=lambda x: abs(x - args.load_step))
 
         model_path = os.path.join(args.checkpoint_path, str(timestep_to_load))
@@ -168,7 +168,7 @@ def run_sequential(args, logger):
             evaluate_sequential(args, runner)
             return
     
-    # Create Offline Data
+    # 创建离线数据
     match args.env:
         case "sc2":
             args.map_name = args.env_args["map_name"]
@@ -180,7 +180,7 @@ def run_sequential(args, logger):
         
     offline_buffer = OfflineBuffer(args, args.map_name, args.offline_data_quality,
                                    args.offline_bottom_data_path, args.offline_max_buffer_size, 
-                                   shuffle=args.offline_data_shuffle) # device defauly cpu
+                                   shuffle=args.offline_data_shuffle) # 设备默认CPU
 
     if getattr(args, "train_behaviour", False):
         train_behaviour_sequential(args, logger, learner, runner, offline_buffer)
@@ -210,7 +210,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
     test_time_total = 0
 
     batch_size_train = args.offline_batch_size
-    batch_size_run = args.batch_size_run # num of parellel envs
+    batch_size_run = args.batch_size_run # 并行环境数
     n_test_runs = max(1, args.test_nepisode//batch_size_run)
     test_start_time = time.time()
 
@@ -231,7 +231,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
         
         t_env += 1
         episode += batch_size_run
-        # Execute test runs once in a while & final evaluation
+        # 偶尔执行一次测试运行并进行最终评估
         if (t_env - last_test_T) / args.test_interval >= 1 or t_env >= t_max:
             test_start_time = time.time()
             with th.no_grad():
@@ -283,7 +283,7 @@ def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)
             learner.train_behaviour(episode_sample)
-            training_steps += 1 # CFCQL calculates "filled" but I directly + 1
+            training_steps += 1 # CFCQL计算“填充”但我直接+1
             
             episode += batch_size_train
             if (training_steps - last_log_T) >= args.log_interval:
@@ -298,7 +298,7 @@ def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
             
 def args_sanity_check(config, _log):
 
-    # set CUDA flags
+    # 设置 CUDA 标志
     # config["use_cuda"] = True # Use cuda whenever possible!
     if config["use_cuda"] and not th.cuda.is_available():
         config["use_cuda"] = False

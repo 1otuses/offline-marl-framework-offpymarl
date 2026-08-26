@@ -12,13 +12,13 @@ import torch as th
 from utils.logging import get_logger
 import yaml
 
-# import run program
+# 导入运行程序
 from run import run as run
 from collect_data import run as collect_data
 from offline_run import run as offline_run
 
 
-SETTINGS['CAPTURE_MODE'] = "fd" # set to "no" if you want to see stdout/stderr in console
+SETTINGS['CAPTURE_MODE'] = "fd" # 如果您想在控制台中看到 stdout/stderr，请设置为“no”
 logger = get_logger()
 
 ex = Experiment("OfflineMARL", save_git_info=False)
@@ -30,13 +30,13 @@ results_path = os.path.join(dirname(dirname(abspath(__file__))), "results")
 
 @ex.main
 def my_main(_run, _config, _log):
-    # Setting the random seed throughout the modules
+    # 在整个模块中设置随机种子
     config = config_copy(_config)
     np.random.seed(config["seed"])
     th.manual_seed(config["seed"])
     config['env_args']['seed'] = config["seed"]
 
-    # run the framework
+    # 运行框架
     match config['run_file']:
         case 'online':
             run(_run, config, _log)
@@ -64,11 +64,11 @@ def _get_config(params, arg_name, subfolder):
                 assert False, "{}.yaml error: {}".format(config_name, exc)
 
         return config_dict
-    else: # e.g. collect_data but not assign task config
+    else: # 例如运行 collect_data 但未指定任务配置
         return {}
 
 def _get_run_file(params):
-    # --run/--collect/--
+    # --运行/--收集/--
     run_file = ''
     for _i, _v in enumerate(params):
         if _v.startswith('--') and '=' not in _v:
@@ -93,7 +93,7 @@ def config_copy(config):
     else:
         return deepcopy(config)
 
-# get config from argv, such as "remark"
+# 从argv获取配置，例如“remark”
 def _get_argv_config(params):
     config = {}
     to_del = []
@@ -114,33 +114,33 @@ def _get_argv_config(params):
 if __name__ == '__main__':
     params = deepcopy(sys.argv)
 
-    # Get the defaults from default.yaml
+    # 从 default.yaml 获取默认值
     with open(os.path.join(os.path.dirname(__file__), "config", "default.yaml"), "r") as f:
         try:
             config_dict = yaml.load(f)
         except yaml.YAMLError as exc:
             assert False, "default.yaml error: {}".format(exc)
 
-    # read the run file
+    # 读取运行文件
     run_file = _get_run_file(params)
     config_dict['run_file'] = run_file
 
-    # Load algorithm base configs
+    # 加载算法基本配置
     alg_config = _get_config(params, "--config", "algs")
     # config_dict = {**config_dict, **alg_config}
     config_dict = recursive_dict_update(config_dict, alg_config)
 
-    # get env type and load env config
+    # 获取环境类型并加载环境配置
     env_config = _get_config(params, "--env-config", "envs")
     config_dict = recursive_dict_update(config_dict, env_config)
 
     
     config_dict = recursive_dict_update(config_dict, _get_argv_config(params))
     
-    # test match in python 3.10.x
+    # 测试 Python 3.10.x 的 match 语句
     match config_dict["env"]:
         case "sc2":
-            # overwrite map_name config
+            # 覆盖map_name配置
             if "map_name" in config_dict:
                 config_dict["env_args"]["map_name"] = config_dict["map_name"]
         case "gymma":
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         case _:
             raise NotImplementedError("Not support env: {}".format(config_dict["env"]))
         
-    # get result path
+    # 获取结果路径
     if 'remark' in config_dict:
         config_dict['remark'] = '_' + config_dict['remark']
     else:
@@ -212,10 +212,10 @@ if __name__ == '__main__':
     config_dict['results_save_dir'] = results_save_dir
     #config_dict['pretrain_save_dir'] = os.path.join(dirname(results_save_dir), 'pretrain-models')
 
-    # Save to disk by default for sacred
+    # 默认将 Sacred 日志保存到磁盘
     file_obs_path = os.path.join(results_save_dir, "sacred")
     ex.observers.append(FileStorageObserver.create(file_obs_path))
     logger.info("Saving to FileStorageObserver in {}.".format(file_obs_path))
-    # now add all the config to sacredd
+    # 现在将所有配置添加到 Sacred
     ex.add_config(config_dict)
     ex.run_commandline(params)

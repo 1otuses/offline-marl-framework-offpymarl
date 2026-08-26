@@ -15,7 +15,7 @@ class Logger:
         self.stats = defaultdict(lambda: [])
 
     def setup_tb(self, directory_name):
-        # Import here so it doesn't have to be installed if you don't use it
+        # 在这里导入，不用的话就不用安装
         self.writer = SummaryWriter(logdir=directory_name)
         self.use_tb = True
 
@@ -86,7 +86,7 @@ class Logger:
         self.console_logger.info(log_str)
 
 
-# set up a custom logger
+# 设置自定义记录器
 def get_logger():
     logger = logging.getLogger()
     logger.handlers = []

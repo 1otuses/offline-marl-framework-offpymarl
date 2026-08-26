@@ -58,7 +58,7 @@ class ICQLearner:
             self.rew_ms = RunningMeanStd(shape=(1,), device=device)
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        # train critic first
+        # 首先训练 Critic
         critic_log = self.train_critic(batch)
 
         bs = batch.batch_size
@@ -83,8 +83,8 @@ class ICQLearner:
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1) # (bs, seq_len-1, n_agents, n_actions)
 
-        mac_out[avail_actions == 0] = 0 # already softmax
-        pi = mac_out / mac_out.sum(dim=-1, keepdim=True) # normalize again over actions
+        mac_out[avail_actions == 0] = 0 # 已经是softmax
+        pi = mac_out / mac_out.sum(dim=-1, keepdim=True) # 对动作概率重新归一化
         pi[avail_actions == 0] = 0
         pi_taken = th.gather(pi, dim=3, index=actions).squeeze(3)
         # (bs , (T-1) , n_agents,)
@@ -154,9 +154,9 @@ class ICQLearner:
             # -----------------------------Q_lambda-IS-----------------------
             target_q_taken = th.gather(target_q_vals, dim=3, index=actions).squeeze(-1)
             target_q_vals_IS = self.target_mixer.icq_forward(target_q_taken, states) # (bs, seq_len, 1)
-            advantage_Q = F.softmax(target_q_vals_IS / self.icq_beta, dim=0) # softmax over trajectory
+            advantage_Q = F.softmax(target_q_vals_IS / self.icq_beta, dim=0) # 轨迹上的 softmax
             targets_taken = self.target_mixer.icq_forward(target_q_taken, states)
-            targets_taken = bs * advantage_Q * targets_taken # do not why there is a "bs*" operator
+            targets_taken = bs * advantage_Q * targets_taken # 不知道为什么有一个“bs*”运算符
             assert bs == len(advantage_Q)
             target_q = build_td_lambda_targets(rewards, terminated, mask, targets_taken, self.n_agents, self.args.gamma, self.args.td_lambda)
             target_q = target_q.detach()
@@ -190,8 +190,8 @@ class ICQLearner:
             critic_log[k] = np.mean(critic_log[k])
         return critic_log
         
-        # implementation of backward together
-        # quicker but performance can not match compared with backward per timestep
+        # 实现 backward-together
+        # 速度更快，但性能不如逐时间步反向传播
         q_vals = self.critic(critic_inputs[:, :max_t-1])
         chosen_action_q_vals = th.gather(q_vals, 3, index=actions[:, :max_t-1])
         chosen_action_q_vals = self.mixer.icq_forward(chosen_action_q_vals, states[:, :max_t-1]) 

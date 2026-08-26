@@ -8,8 +8,8 @@ class MLP(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        # create network layers
-        if norm_in:  # normalize inputs
+        # 创建网络层
+        if norm_in:  # 标准化输入
             self.in_fn = nn.BatchNorm1d(input_dim)
             self.in_fn.weight.data.fill_(1)
             self.in_fn.bias.data.fill_(0)

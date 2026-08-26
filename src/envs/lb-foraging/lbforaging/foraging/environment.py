@@ -50,7 +50,7 @@ class Player:
 
 class ForagingEnv(Env):
     """
-    A class that contains rules/actions for the game level-based foraging.
+    包含基于等级的觅食游戏规则与动作的环境类。
     """
 
     metadata = {"render.modes": ["human"]}
@@ -62,7 +62,7 @@ class ForagingEnv(Env):
     )
     PlayerObservation = namedtuple(
         "PlayerObservation", ["position", "level", "history", "reward", "is_self"]
-    )  # reward is available only if is_self
+    )  # 仅当 is_self 时才可获得奖励
 
     def __init__(
         self,
@@ -95,7 +95,7 @@ class ForagingEnv(Env):
 
         self.action_space = gym.spaces.Tuple(tuple([gym.spaces.Discrete(5)] * len(self.players)))
         self.observation_space = gym.spaces.Tuple(tuple([self._get_observation_space()] * len(self.players)))
-        # not _grid_observation:
+        # 非网格观测模式
 
         self._rendering_initialized = False
         self._valid_actions = None
@@ -124,29 +124,29 @@ class ForagingEnv(Env):
             max_food = self.max_food
             max_food_level = self.max_player_level * len(self.players)
 
-            # ! adding [x,y,r] to observation
+            # 将 [x,y,r] 添加到观测中
             min_obs = [0] + [-1, -1, 0] * max_food + [0, 0, 1] * len(self.players)
             max_obs = [1] + \
                       [field_x, field_y, max_food_level] * max_food + \
                       [field_x, field_y, self.max_player_level] * len(self.players)
         else:
-            # grid observation space
+            # 网格观测空间
             grid_shape = (1 + 2 * self.sight, 1 + 2 * self.sight)
 
-            # agents layer: agent levels
+            # 智能体层：智能体等级
             agents_min = np.zeros(grid_shape, dtype=np.float32)
             agents_max = np.ones(grid_shape, dtype=np.float32) * self.max_player_level
 
-            # foods layer: foods level
+            # 食物层：食物等级
             max_food_level = self.max_player_level * len(self.players)
             foods_min = np.zeros(grid_shape, dtype=np.float32)
             foods_max = np.ones(grid_shape, dtype=np.float32) * max_food_level
 
-            # access layer: i the cell available
+            # 可访问层：标记单元格是否可访问
             access_min = np.zeros(grid_shape, dtype=np.float32)
             access_max = np.ones(grid_shape, dtype=np.float32)
 
-            # total layer
+            # 合并各层
             min_obs = np.stack([agents_min, foods_min, access_min])
             max_obs = np.stack([agents_max, foods_max, access_max])
 
@@ -263,57 +263,57 @@ class ForagingEnv(Env):
         min_level = max_level if self.force_coop else 1
         level = min_level if min_level == max_level else self.np_random.randint(min_level, max_level)
         if self.food_pos == 'topright':
-            self.field[0,     self.cols - 1]     = level # topright
+            self.field[0,     self.cols - 1]     = level # 右上角
         if self.food_pos == 'topright1':
-            self.field[0,     self.cols - 1 - 1] = level # topright's left
+            self.field[0,     self.cols - 1 - 1] = level # 右上角左侧
         if self.food_pos == 'topright2':
-            self.field[0 + 1, self.cols - 1 - 1] = level # topright's bottomleft
+            self.field[0 + 1, self.cols - 1 - 1] = level # 右上角的左下方
         if self.food_pos == 'topright3':
-            self.field[0 + 1, self.cols - 1]     = level # topright's bottom
+            self.field[0 + 1, self.cols - 1]     = level # 右上角下方
 
         elif self.food_pos == 'right':
-            self.field[self.rows // 2,     self.cols - 1]     = level # right
+            self.field[self.rows // 2,     self.cols - 1]     = level # 右侧
         elif self.food_pos == 'right1':
-            self.field[self.rows // 2 - 1, self.cols - 1]     = level # right's top
+            self.field[self.rows // 2 - 1, self.cols - 1]     = level # 右侧位置的上方
         elif self.food_pos == 'right2':
-            self.field[self.rows // 2 - 1, self.cols - 1 - 1] = level # right's topleft
+            self.field[self.rows // 2 - 1, self.cols - 1 - 1] = level # 右侧位置的左上方
         elif self.food_pos == 'right3':
-            self.field[self.rows // 2,     self.cols - 1 - 1] = level # right's left
+            self.field[self.rows // 2,     self.cols - 1 - 1] = level # 右侧位置的左方
         elif self.food_pos == 'right4':
-            self.field[self.rows // 2 + 1, self.cols - 1 - 1] = level # right's bottomleft
+            self.field[self.rows // 2 + 1, self.cols - 1 - 1] = level # 右侧位置的左下方
         elif self.food_pos == 'right5':
-            self.field[self.rows // 2 + 1, self.cols - 1]     = level # right's bottom
+            self.field[self.rows // 2 + 1, self.cols - 1]     = level # 右侧位置的下方
 
         elif self.food_pos == 'bottomright':
-            self.field[self.rows - 1,     self.cols - 1]     = level # bottomright
+            self.field[self.rows - 1,     self.cols - 1]     = level # 右下角
         elif self.food_pos == 'bottomright1':
-            self.field[self.rows - 1 - 1, self.cols - 1]     = level # bottomright's top
+            self.field[self.rows - 1 - 1, self.cols - 1]     = level # 右下角上方
         elif self.food_pos == 'bottomright2':
-            self.field[self.rows - 1 - 1, self.cols - 1 - 1] = level # bottomright's topleft
+            self.field[self.rows - 1 - 1, self.cols - 1 - 1] = level # 右下角的左上方
         elif self.food_pos == 'bottomright3':
-            self.field[self.rows - 1,     self.cols - 1 - 1] = level # bottomright's left
+            self.field[self.rows - 1,     self.cols - 1 - 1] = level # 右下角左侧
 
         elif self.food_pos == 'bottom':
-            self.field[self.rows - 1,     self.cols // 2]     = level # bottom
+            self.field[self.rows - 1,     self.cols // 2]     = level # 底部
         elif self.food_pos == 'bottom1':
-            self.field[self.rows - 1,     self.cols // 2 + 1] = level # bottom's right
+            self.field[self.rows - 1,     self.cols // 2 + 1] = level # 底部位置的右方
         elif self.food_pos == 'bottom2': 
-            self.field[self.rows - 1 - 1, self.cols // 2 + 1] = level # bottom's topright
+            self.field[self.rows - 1 - 1, self.cols // 2 + 1] = level # 底部位置的右上方
         elif self.food_pos == 'bottom3':
-            self.field[self.rows - 1 - 1, self.cols // 2]     = level # bottom's top
+            self.field[self.rows - 1 - 1, self.cols // 2]     = level # 底部位置的上方
         elif self.food_pos == 'bottom4':
-            self.field[self.rows - 1 - 1, self.cols // 2 - 1] = level # bottom's topleft
+            self.field[self.rows - 1 - 1, self.cols // 2 - 1] = level # 底部位置的左上方
         elif self.food_pos == 'bottom5':
-            self.field[self.rows - 1,     self.cols // 2 - 1] = level # bottom's left
+            self.field[self.rows - 1,     self.cols // 2 - 1] = level # 底部位置的左方
 
         elif self.food_pos == 'bottomleft':
-            self.field[self.rows - 1,     0]     = level # bottomleft
+            self.field[self.rows - 1,     0]     = level # 左下角
         elif self.food_pos == 'bottomleft1':
-            self.field[self.rows - 1,     0 + 1] = level # bottomleft's right
+            self.field[self.rows - 1,     0 + 1] = level # 左下角右侧
         elif self.food_pos == 'bottomleft2':
-            self.field[self.rows - 1 - 1, 0 + 1] = level # bottomleft's topright
+            self.field[self.rows - 1 - 1, 0 + 1] = level # 左下角的右上方
         elif self.food_pos == 'bottomleft3':
-            self.field[self.rows - 1 - 1, 0]     = level # bottomleft's top
+            self.field[self.rows - 1 - 1, 0]     = level # 左下角的顶部
 
         self._food_spawned = self.field.sum()
 
@@ -392,7 +392,7 @@ class ForagingEnv(Env):
                 )
                 <= 2 * sight
             ],
-            # todo also check max?
+            # TODO：是否还需检查最大值？
             field=np.copy(self.neighborhood(*player.position, sight)),
             game_over=self.game_over,
             sight=sight,
@@ -404,7 +404,7 @@ class ForagingEnv(Env):
         def make_obs_array(observation):
             obs = np.zeros(self.observation_space[0].shape, dtype=np.float32)
             # obs[: observation.field.size] = observation.field.flatten()
-            # self player is always first
+            # 当前玩家始终排在首位
             seen_players = [p for p in observation.players if p.is_self] + [
                 p for p in observation.players if not p.is_self
             ]
@@ -435,7 +435,7 @@ class ForagingEnv(Env):
 
         def make_global_grid_arrays():
             """
-            Create global arrays for grid observation space
+            为网格观测空间创建全局数组。
             """
             grid_shape_x, grid_shape_y = self.field_size
             grid_shape_x += 2 * self.sight
@@ -451,16 +451,16 @@ class ForagingEnv(Env):
             foods_layer[self.sight:-self.sight, self.sight:-self.sight] = self.field.copy()
 
             access_layer = np.ones(grid_shape, dtype=np.float32)
-            # out of bounds not accessible
+            # 边界外区域不可访问
             access_layer[:self.sight, :] = 0.0
             access_layer[-self.sight:, :] = 0.0
             access_layer[:, :self.sight] = 0.0
             access_layer[:, -self.sight:] = 0.0
-            # agent locations are not accessible
+            # 智能体所在位置不可访问
             for player in self.players:
                 player_x, player_y = player.position
                 access_layer[player_x + self.sight, player_y + self.sight] = 0.0
-            # food locations are not accessible
+            # 食物位置不可访问
             foods_x, foods_y = self.field.nonzero()
             for x, y in zip(foods_x, foods_y):
                 access_layer[x + self.sight, y + self.sight] = 0.0
@@ -515,7 +515,7 @@ class ForagingEnv(Env):
             for p, a in zip(self.players, actions)
         ]
 
-        # check if actions are valid
+        # 检查动作是否有效
         for i, (player, action) in enumerate(zip(self.players, actions)):
             if action not in self._valid_actions[player]:
                 self.logger.info(
@@ -525,11 +525,11 @@ class ForagingEnv(Env):
                 )
                 actions[i] = Action.NONE
 
-        # move players
-        # if two or more players try to move to the same location they all fail
+        # 移动玩家
+        # 如果两个或更多玩家尝试移动到同一位置，则全部移动失败
         collisions = defaultdict(list)
 
-        # so check for collisions
+        # 所以检查是否有碰撞
         for player, action in zip(self.players, actions):
             if action == Action.NONE:
                 collisions[player.position].append(player)
@@ -542,18 +542,18 @@ class ForagingEnv(Env):
             elif action == Action.EAST:
                 collisions[(player.position[0], player.position[1] + 1)].append(player)
 
-        # and do movements for non colliding players
+        # 移动未发生碰撞的玩家
 
         for k, v in collisions.items():
-            if len(v) > 1:  # make sure no more than an player will arrive at location
+            if len(v) > 1:  # 确保同一位置最多只有一个玩家到达
                 continue
             v[0].position = k
 
-        # finally process the loadings:
+        # 最后处理装载动作
         for player in self.players:
-            # find adjacent food
+            # 寻找相邻的食物
             if self.adjacent_food(*player.position) == 0:
-                # no adjacent food
+                # 没有相邻的食物
                 continue
             frow, fcol = self.adjacent_food_location(*player.position)
             food = self.field[frow, fcol]
@@ -563,17 +563,17 @@ class ForagingEnv(Env):
             adj_player_level = sum([a.level for a in adj_players])
 
             if adj_player_level < food:
-                # failed to load
+                # 装载失败
                 continue
 
-            # else the food was loaded and each player scores points
+            # 否则食物装载成功，每个玩家获得分数
             for a in adj_players:
                 a.reward = float(a.level * food)
                 if self._normalize_reward:
                     a.reward = a.reward / float(
                         adj_player_level * self._food_spawned
-                    )  # normalize reward
-            # and the food is removed
+                    )  # 奖励归一化
+            # 食物被移除
             self.field[frow, fcol] = 0
 
         self._game_over = (
@@ -605,16 +605,16 @@ class ForagingEnv(Env):
     
     def get_state(self):
         if not self._grid_observation:
-            # new state
+            # 新状态
             state = np.zeros(self.observation_space[0].shape, dtype=np.float32)
 
-            # food position and level
+            # 食物位置和等级
             for i, (y, x) in enumerate(zip(*np.nonzero(self.field))):
                 state[3 * i] = y
                 state[3 * i + 1] = x
                 state[3 * i + 2] = self.field[y, x]
 
-            # player position and level
+            # 玩家位置和等级
             for i, p in enumerate(self.players):
                 state[self.max_food * 3 + 3 * i] = p.position[0]
                 state[self.max_food * 3 + 3 * i + 1] = p.position[1]
@@ -632,11 +632,11 @@ class ForagingEnv(Env):
             foods_layer = self.field.copy()
 
             access_layer = np.ones(self.field_size, dtype=np.float32)
-            # agent locations are not accessible
+            # 智能体所在位置不可访问
             for player in self.players:
                 player_x, player_y = player.position
                 access_layer[player_x, player_y] = 0.0
-            # food locations are not accessible
+            # 食物位置不可访问
             foods_x, foods_y = self.field.nonzero()
             for x, y in zip(foods_x, foods_y):
                 access_layer[x, y] = 0.0

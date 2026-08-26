@@ -12,7 +12,7 @@ class RNNAgent(nn.Module):
         self.fc2 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
 
     def init_hidden(self):
-        # make hidden states on same device as model
+        # 在与模型相同的设备上创建隐藏状态
         return self.fc1.weight.new(1, self.args.rnn_hidden_dim).zero_()
 
     def forward(self, inputs, hidden_state):

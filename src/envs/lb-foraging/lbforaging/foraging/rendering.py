@@ -1,5 +1,5 @@
 """
-2D rendering of the level based foraging domain
+基于等级的觅食环境二维渲染。
 """
 
 import math
@@ -14,7 +14,7 @@ from gym import error
 if "Apple" in sys.version:
     if "DYLD_FALLBACK_LIBRARY_PATH" in os.environ:
         os.environ["DYLD_FALLBACK_LIBRARY_PATH"] += ":/usr/lib"
-        # (JDS 2016/04/15): avoid bug on Anaconda 2.3.0 / Yosemite
+        # (JDS 2016/04/15)：避免 Anaconda 2.3.0 / Yosemite 上的错误
 
 
 try:
@@ -43,7 +43,7 @@ except ImportError as e:
 
 
 RAD2DEG = 57.29577951308232
-# # Define some colors
+# # 定义一些颜色
 _BLACK = (0, 0, 0)
 _WHITE = (255, 255, 255)
 _GREEN = (0, 255, 0)
@@ -51,9 +51,8 @@ _RED = (255, 0, 0)
 
 
 def get_display(spec):
-    """Convert a display specification (such as :0) into an actual Display
-    object.
-    Pyglet only supports multiple Displays on Linux.
+    """将显示规范（例如 :0）转换为实际的 Display 对象。
+    Pyglet 仅在 Linux 上支持多个 Display。
     """
     if spec is None:
         return None
@@ -213,7 +212,7 @@ class Viewer(object):
         badge_x = col * self.grid_size + (3 / 4) * self.grid_size
         badge_y = self.height - self.grid_size * (row + 1) + (1 / 4) * self.grid_size
 
-        # make a circle
+        # 画一个圆圈
         verts = []
         for i in range(resolution):
             angle = 2 * math.pi * i / resolution

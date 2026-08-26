@@ -21,7 +21,7 @@ if sys.platform == "linux":
     os.environ.setdefault("SC2PATH",
                           os.path.join(os.getcwd(), "3rdparty", "StarCraftII"))
 
-# add other envs
+# 添加其他环境
 class TimeLimit(GymTimeLimit):
     def __init__(self, env, max_episode_steps=None):
         super().__init__(env)
@@ -47,7 +47,7 @@ class TimeLimit(GymTimeLimit):
 
 
 class FlattenObservation(ObservationWrapper):
-    r"""Observation wrapper that flattens the observation of individual agents."""
+    r""" 观测封装器，使单个智能体的观测变得平坦。 """
 
     def __init__(self, env):
         super(FlattenObservation, self).__init__(env)
@@ -105,7 +105,7 @@ class _GymmaWrapper(MultiAgentEnv):
         self._env.seed(self._seed)
 
     def step(self, actions):
-        """ Returns reward, terminated, info """
+        """ 返回奖励、终止、信息 """
         actions = [int(a) for a in actions]
         self._obs, reward, done, info = self._env.step(actions)
         self._obs = [
@@ -120,15 +120,15 @@ class _GymmaWrapper(MultiAgentEnv):
         return float(sum(reward)), all(done), {}
     
     def get_obs(self):
-        """ Returns all agent observations in a list """
+        """ 返回列表中的所有智能体观测 """
         return self._obs
 
     def get_obs_agent(self, agent_id):
-        """ Returns observation for agent_id """
+        """ 返回 agent_id 的观测 """
         raise self._obs[agent_id]
 
     def get_obs_size(self):
-        """ Returns the shape of the observation """
+        """ 返回观测的形状 """
         return flatdim(self.longest_observation_space)
 
     def get_state(self):
@@ -147,18 +147,18 @@ class _GymmaWrapper(MultiAgentEnv):
         return avail_actions
 
     def get_avail_agent_actions(self, agent_id):
-        """ Returns the available actions for agent_id """
+        """ 返回agent_id的可用动作 """
         valid = flatdim(self._env.action_space[agent_id]) * [1]
         invalid = [0] * (self.longest_action_space.n - len(valid))
         return valid + invalid
 
     def get_total_actions(self):
-        """ Returns the total number of actions an agent could ever take """
-        # TODO: This is only suitable for a discrete 1 dimensional action space for each agent
+        """ 返回智能体可以执行的动作总数 """
+        # TODO：这仅适用于每个智能体的离散一维动作空间
         return flatdim(self.longest_action_space)
 
     def reset(self):
-        """ Returns initial observations and states"""
+        """ 返回初始观测和状态 """
         self._obs = self._env.reset()
         self._obs = [
             np.pad(

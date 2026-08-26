@@ -36,7 +36,7 @@ class OMIGALearner:
             case _:
                 raise ValueError("Invalid optimiser type", self.args.optim_type)
 
-        # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
+        # 深度复制有点浪费（例如重复动作选择器），但应该适用于任何 MAC
         self.target_mac = copy.deepcopy(mac)
         self.target_v_critic = copy.deepcopy(self.v_critic)
         self.target_q_critic = copy.deepcopy(self.q_critic)
@@ -56,13 +56,13 @@ class OMIGALearner:
             self.rew_ms = RunningMeanStd(shape=(1,), device=device)
 
     def train(self, batch, t_env: int, episode_num: int):
-        # Get the relevant quantities
+        # 获取相关张量
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
-        # termianted point 1 -> 0
+        # 终止点 1 -> 0
         avail_actions = batch["avail_actions"]
         
         critic_inputs = self._build_critic_inputs(batch)

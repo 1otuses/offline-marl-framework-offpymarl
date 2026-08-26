@@ -6,46 +6,46 @@ import torch.nn.functional as F
 
 def onehot_from_logits(logits, eps=0.0):
     """
-    Given batch of logits, return one-hot sample using epsilon greedy strategy
-    (based on given epsilon)
+    给定一批 logits，使用 epsilon 贪婪策略（基于给定的 epsilon）
+    返回 one-hot 样本。
     """
     argmax_acs = (logits == logits.max(-1, keepdim=True)[0]).float()
     return argmax_acs #.shape == logits.shape
 
 def sample_gumbel(shape, eps=1e-20, tens_type=th.FloatTensor):
-    """Sample from Gumbel(0, 1)"""
+    """ 来自 Gumbel(0, 1) 的样本 """
     U = Variable(tens_type(*shape).uniform_(), requires_grad=False)
     return -th.log(-th.log(U + eps) + eps)
 
-# modified for PyTorch from https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb
+# 基于 https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb 修改为 PyTorch 版本
 def gumbel_softmax_sample(logits, temperature):
-    """ Draw a sample from the Gumbel-Softmax distribution"""
+    """ 从 Gumbel-Softmax 分布中抽取样本 """
     y = logits + sample_gumbel(logits.shape, tens_type=type(logits.data)).to(logits.device)
     return F.softmax(y / temperature, dim=-1)
 
-# modified for PyTorch from https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb
+# 基于 https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb 修改为 PyTorch 版本
 def gumbel_softmax(logits, temperature=1.0, hard=False, return_dist=False):
-    """Sample from the Gumbel-Softmax distribution and optionally discretize.
-    Args:
-      logits: [batch_size, n_class] unnormalized log-probs
-      temperature: non-negative scalar
-      hard: if True, take argmax, but differentiate w.r.t. soft sample y
-    Returns:
-      [batch_size, n_class] sample from the Gumbel-Softmax distribution.
-      If hard=True, then the returned sample will be one-hot, otherwise it will
-      be a probabilitiy distribution that sums to 1 across classes
+    """从 Gumbel-Softmax 分布中采样，并可选择将结果离散化。
+    参数：
+      logits：[batch_size, n_class]，未归一化的对数概率
+      temperature：非负标量
+      hard：若为 True，则取 argmax，但仍相对于软样本 y 求导
+    返回：
+      [batch_size, n_class]，从 Gumbel-Softmax 分布得到的样本。
+      若 hard=True，返回 one-hot 样本；否则返回在类别维度上
+      概率和为 1 的概率分布。
     """
 
     y = gumbel_softmax_sample(logits, temperature)
     if hard:
         y_hard = onehot_from_logits(y)
-        y_keep_gradient = (y_hard - y).detach() + y # keep gradient
+        y_keep_gradient = (y_hard - y).detach() + y # 保持梯度
     if return_dist:
         return y_keep_gradient, y
     return y_keep_gradient
 
 
-# This multi-agent controller shares parameters between agents
+# 该多智能体控制器在智能体之间共享参数
 class MADDPGMAC:
     def __init__(self, scheme, groups, args):
         self.n_agents = args.n_agents
@@ -68,7 +68,7 @@ class MADDPGMAC:
 
     def target_actions(self, ep_batch, t_ep, agent_id=None):
         agent_outputs = self.forward(ep_batch, t_ep, agent_id)
-        return onehot_from_logits(agent_outputs) # (bs, n_agents, n_ac) no need to softmax/gumble sampling due to detach()
+        return onehot_from_logits(agent_outputs) # (bs, n_agents, n_ac) 由于使用 detach()，无需执行 softmax/Gumbel 采样
 
     def forward(self, ep_batch, t, agent_id=None):
         agent_inputs = self._build_inputs(ep_batch, t, agent_id)

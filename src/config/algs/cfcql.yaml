@@ -1,10 +1,10 @@
-# --- CFCQL specific parameters ---
+# --- CFCQL 具体参数 ---
 
-# use epsilon greedy action selector
+# 使用 epsilon 贪婪动作选择器
 action_selector: "epsilon_greedy"
 epsilon_start: 1.0
 epsilon_finish: 0.05
-epsilon_anneal_time: 100000 # 500000 for 6h_vs_8z else 100000
+epsilon_anneal_time: 100000 # 6h_vs_8z 使用 500000，其他场景使用 100000
 
 # runner: "episode"
 runner: "episode"
@@ -12,10 +12,10 @@ runner: "episode"
 buffer_size: 5000
 
 
-# update the target network every {} episodes
+# 每 {} 个回合更新一次目标网络
 target_update_interval_or_tau: 200
 
-# use the Q_Learner to train
+# 使用 Q_Learner 进行训练
 agent_output_type: q
 
 behaviour_log_interval: 2000
@@ -26,8 +26,8 @@ learner: "cfcq_learner"
 mixer: "nmix"
 mixing_embed_dim: 32
 hypernet_embed: 64
-lr: 0.001 # Learning rate for agents
-td_lambda: 0.6 # 0.3 for 6h_vs_8z else 0.6
+lr: 0.001 # 智能体的学习率
+td_lambda: 0.6 # 6h_vs_8z 为 0.3，其他为 0.6
 train_behaviour: True
 
 

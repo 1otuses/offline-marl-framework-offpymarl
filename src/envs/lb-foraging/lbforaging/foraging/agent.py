@@ -23,7 +23,7 @@ class Agent:
             (x for x in obs.players if x.is_self), None
         ).position
 
-        # saves the action to the history
+        # 将动作保存到历史记录中
         action = self.step(obs)
         self.history.append(action)
 
