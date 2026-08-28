@@ -10,13 +10,13 @@ from utils.timehelper import time_left, time_str
 from os.path import dirname, abspath
 import json
 
-from learners import REGISTRY as le_REGISTRY
-from runners import REGISTRY as r_REGISTRY
-from controllers import REGISTRY as mac_REGISTRY
+from learners import REGISTRY as le_REGISTRY # 核心算法模组
+from runners import REGISTRY as r_REGISTRY # 运行器模组
+from controllers import REGISTRY as mac_REGISTRY # 控制器模组
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
 
-
+# 用于online训练
 def run(_run, _config, _log):
 
     # 检查参数有效性
@@ -29,7 +29,7 @@ def run(_run, _config, _log):
     # 设置记录器
     logger = Logger(_log)
 
-    _log.info("Experiment Parameters:")
+    _log.info("实验参数:")
     experiment_params = pprint.pformat(_config,
                                        indent=4,
                                        width=1)
@@ -128,6 +128,7 @@ def run_sequential(args, logger):
     buffer = ReplayBuffer(scheme, groups, args.buffer_size, env_info["episode_limit"] + 1,
                           preprocess=preprocess,
                           device="cpu" if args.buffer_cpu_only else args.device)
+    # 数据集结构：scheme + groups + preprocess + max_seq_length + buffer_size + device
 
     # 在这里设置多智能体控制器
     mac = mac_REGISTRY[args.mac](buffer.scheme, groups, args)

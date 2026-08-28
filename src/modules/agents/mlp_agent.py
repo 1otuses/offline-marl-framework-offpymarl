@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# MLP无记忆策略
 class MLPAgent(nn.Module):
     def __init__(self, input_shape, args):
         super(MLPAgent, self).__init__()

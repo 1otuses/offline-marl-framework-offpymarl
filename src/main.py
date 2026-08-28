@@ -18,7 +18,7 @@ from collect_data import run as collect_data
 from offline_run import run as offline_run
 
 
-SETTINGS['CAPTURE_MODE'] = "fd" # 如果您想在控制台中看到 stdout/stderr，请设置为“no”
+SETTINGS['CAPTURE_MODE'] = "fd" # 如果您想在控制台中看到 stdout/stderr 输出和错误,请设置为“no”
 logger = get_logger()
 
 ex = Experiment("OfflineMARL", save_git_info=False)
@@ -28,15 +28,54 @@ ex.captured_out_filter = apply_backspaces_and_linefeeds
 results_path = os.path.join(dirname(dirname(abspath(__file__))), "results")
 
 
-@ex.main
+def set_cuda_device(config, log):
+    if not config.get("use_cuda", False) or not th.cuda.is_available():
+        return
+
+    gpu_id = config.get("g", 0)
+    if isinstance(gpu_id, bool) or not isinstance(gpu_id, int):
+        raise ValueError("--g must be a non-negative integer GPU index")
+
+    device_count = th.cuda.device_count()
+    if gpu_id < 0 or gpu_id >= device_count:
+        visible_devices = ", ".join(
+            "{}: {}".format(i, th.cuda.get_device_name(i))
+            for i in range(device_count)
+        )
+        raise ValueError(
+            "--g={} is unavailable. Visible CUDA devices: {}".format(
+                gpu_id, visible_devices or "none"
+            )
+        )
+
+    th.cuda.set_device(gpu_id)
+    log.info("Using CUDA device %d: %s", gpu_id, th.cuda.get_device_name(gpu_id))
+
+
+@ex.main # 定义的my_main函数为ex实验的主函数, Sacred将使用它作为实验的入口点
 def my_main(_run, _config, _log):
+    # 几个需要主动设置的参数
+    # --online/--collect/--offline
+    # --config=<alg_name> 位置在src/config/algs/...
+    # --env-config=<env_name> 位置在src/config/envs/...
+    # --map-name=<map_name>
+    # --offline_data_quality=<quality> 例如 expert, medium, random
+    # --save_replay_buffer=<whether_to_save_replay>
+    # --num_episodes_collected=<num_episodes_per_collection>
+    # --g=<gpu_index>
+
     # 在整个模块中设置随机种子
     config = config_copy(_config)
+    set_cuda_device(config, _log)
     np.random.seed(config["seed"])
     th.manual_seed(config["seed"])
     config['env_args']['seed'] = config["seed"]
 
-    # 运行框架
+    # 整体运行框架
+    # 3种模式:
+    # 1. online: 在线训练
+    # 2. collect: 收集数据
+    # 3. offline: 离线训练
     match config['run_file']:
         case 'online':
             run(_run, config, _log)
@@ -44,8 +83,8 @@ def my_main(_run, _config, _log):
             collect_data(_run, config, _log)
         case "offline":
             offline_run(_run, config, _log)
-        case _: 
-            raise NotImplementedError("hhhh")
+        case _:
+            raise NotImplementedError("....")
 
 
 def _get_config(params, arg_name, subfolder):

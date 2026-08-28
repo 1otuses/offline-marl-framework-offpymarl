@@ -6,6 +6,7 @@ import torch
 from typing import Tuple
 
 
+# 在训练过程中持续统计数据的mean、var以及count,对reward/return做动态标准化
 class RunningMeanStd(object):
     def __init__(self, epsilon: float = 1e-4, shape: Tuple[int, ...] = (), device="cpu"):
         """

@@ -9,7 +9,7 @@ class BasicMAC:
         self.n_agents = args.n_agents
         self.args = args
         input_shape = self._get_input_shape(scheme)
-        self._build_agents(input_shape)
+        self._build_agents(input_shape) # 创建共享参数Agent——rnn_agent
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
@@ -74,20 +74,20 @@ class BasicMAC:
         self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
 
     def _build_inputs(self, batch, t):
-        # 假设同质智能体具有扁平观测。
-        # 其他 MAC 可能需要将输入构建委托给各智能体
-        bs = batch.batch_size
+        # 构造当前时间步的输入
+        # 假设同质智能体具有扁平观测
+        bs = batch.batch_size # B
         inputs = []
-        inputs.append(batch["obs"][:, t])  # b1av
+        inputs.append(batch["obs"][:, t])  # [B, N, O]
         if self.args.obs_last_action:
             if t == 0:
                 inputs.append(th.zeros_like(batch["actions_onehot"][:, t]))
             else:
-                inputs.append(batch["actions_onehot"][:, t-1])
+                inputs.append(batch["actions_onehot"][:, t-1]) # a_{t-1}执行的动作 one-hot编码
         if self.args.obs_agent_id:
             inputs.append(th.eye(self.n_agents, device=batch.device).unsqueeze(0).expand(bs, -1, -1))
         inputs = th.cat([x.reshape(bs*self.n_agents, -1) for x in inputs], dim=1)
-        return inputs
+        return inputs # [B*N, O + A + N]
 
     def _get_input_shape(self, scheme):
         input_shape = scheme["obs"]["vshape"]

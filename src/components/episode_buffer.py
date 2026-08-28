@@ -3,6 +3,7 @@ import numpy as np
 from types import SimpleNamespace as SN
 
 
+# 将不同长度、字段的MA轨迹 统一组织成固定形状的Tensor
 class EpisodeBatch:
     def __init__(self,
                  scheme,
@@ -40,12 +41,12 @@ class EpisodeBatch:
                     vshape, dtype = transform.infer_output_info(vshape, dtype)
 
                 self.scheme[new_k] = {
-                    "vshape": vshape,
+                    "vshape": vshape, # 表示 {} 的shape
                     "dtype": dtype
                 }
-                if "group" in self.scheme[k]:
+                if "group" in self.scheme[k]: # agents个数
                     self.scheme[new_k]["group"] = self.scheme[k]["group"]
-                if "episode_const" in self.scheme[k]:
+                if "episode_const" in self.scheme[k]: # 是否为常量
                     self.scheme[new_k]["episode_const"] = self.scheme[k]["episode_const"]
 
         assert "filled" not in scheme, '"filled" is a reserved key for masking.'
@@ -70,8 +71,10 @@ class EpisodeBatch:
                 shape = vshape
 
             if episode_const:
+                # episode_data 表示随时间为常量的数据: [B, *vshape]
                 self.data.episode_data[field_key] = th.zeros((batch_size, *shape), dtype=dtype, device=self.device)
             else:
+                # transition_data 表示随时间变化的数据:o,s,a,r,terminated
                 self.data.transition_data[field_key] = th.zeros((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)
 
     def extend(self, scheme, groups=None):
@@ -216,8 +219,8 @@ class ReplayBuffer(EpisodeBatch):
     def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu"):
         super(ReplayBuffer, self).__init__(scheme, groups, buffer_size, max_seq_length, preprocess=preprocess, device=device)
         self.buffer_size = buffer_size  # 与 self.batch_size 相同，但含义更明确
-        self.buffer_index = 0
-        self.episodes_in_buffer = 0
+        self.buffer_index = 0 # 下一个episode写入下标
+        self.episodes_in_buffer = 0 # 当前已经写入的episodes数量
 
     def insert_episode_batch(self, ep_batch):
         if self.buffer_index + ep_batch.batch_size <= self.buffer_size:

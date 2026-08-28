@@ -17,7 +17,7 @@ from components.episode_buffer import ReplayBuffer
 from components.offline_buffer import DataSaver
 from components.transforms import OneHot
 
-
+# 用训练好的online模型收集离线数据,类型为HDF5
 def run(_run, _config, _log):
     # 检查参数有效性
     _config = args_sanity_check(_config, _log)
@@ -41,7 +41,7 @@ def run(_run, _config, _log):
     
     logger = Logger(_log)
 
-    _log.info("Experiment Parameters:")
+    _log.info("实验参数:")
     experiment_params = pprint.pformat(_config,
                                        indent=4,
                                        width=1)
@@ -128,7 +128,7 @@ def evaluate_sequential(args, runner, logger):
     # 关闭
     #logger.console_logger.info("Save offline buffer to {}".format(offline_saver.save_path))
     runner.close_env()
-    logger.console_logger.info("Finished Evaluation")
+    logger.console_logger.info("评估完成")
 
 def run_sequential(args, logger):
     runner = r_REGISTRY[args.runner](args=args, logger=logger)
@@ -228,8 +228,18 @@ def run_sequential(args, logger):
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
     logger.console_logger.info("collect data with data quality: {}".format(args.offline_data_quality))
 
+    online_training_total = max(args.t_max, 0)
+    online_progress = tqdm(
+        total=online_training_total,
+        initial=min(max(runner.t_env, 0), online_training_total),
+        desc="Collect online training",
+        unit="env_step",
+        dynamic_ncols=True,
+        disable=runner.t_env >= args.t_max,
+    )
     while runner.t_env < args.t_max:
         assert args.offline_data_quality.lower() != 'random'
+        previous_t_env = runner.t_env
         
         with th.no_grad():
             episode_batch = runner.run(test_mode=False)
@@ -239,6 +249,11 @@ def run_sequential(args, logger):
                 replay_saver.append(data={
                     k:episode_batch[k].clone().cpu() for k in episode_batch.data.transition_data.keys()
                     })
+
+        online_progress.update(max(
+            0,
+            min(runner.t_env, args.t_max) - min(previous_t_env, args.t_max),
+        ))
         
         # 在线训练
         if buffer.can_sample(args.batch_size):
@@ -297,6 +312,8 @@ def run_sequential(args, logger):
             logger.log_stat("episode", episode, runner.t_env)
             logger.print_recent_stats()
             last_log_T = runner.t_env
+
+    online_progress.close()
 
     if args.save_replay_buffer and args.offline_data_quality.lower() != 'random':
         replay_saver.close()

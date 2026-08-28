@@ -1,31 +1,37 @@
-# --- 默认配置 ---
+# --- 默认配置(基础config) ---
 
 # --- pymarl 选项 ---
-runner: "episode" # 每个回合运行 1 个环境
+runner: "episode" # 每次runner.run()运行一个环境并采集一条完整的episode
+# "parallel"模式则表示可并行运行多个环境,并通过batch_size_run参数指定并行运行的环境数量
 mac: "basic_mac" # 基本控制器
+# 几个不同的可供选择的控制器 在controllers文件夹中定义: 
+# maddpg_mac
+# random_mac
+# basic_mac
 env: "sc2" # 环境名称
 env_args: {} # 环境参数
 batch_size_run: 1 # 并行运行的环境数量
 test_nepisode: 20 # 测试回合数
-test_interval: 2000 # 经过 {} 个时间步后进行测试
+test_interval: 2000 # 测试频率
 test_greedy: True # 使用贪婪求值（如果为 False，则将 epsilon 下限设置为 0
-log_interval: 2000 # 每 {} 个时间步后记录统计信息摘要
-runner_log_interval: 2000 # 每 {} 个时间步记录运行器统计信息（不是测试统计信息）
-learner_log_interval: 2000 # 每 {} 个时间步记录一次训练统计数据
-t_max: 10000 # 经过这么多时间步后停止运行
+log_interval: 2000 # 统计频率
+runner_log_interval: 2000 # runner统计频率:环境回报、胜率
+learner_log_interval: 2000 # 训练统计频率:loss、梯度、Critic
+t_max: 10000 # 总训练步长
 use_cuda: True # 默认使用 GPU 除非不可用
-buffer_cpu_only: True # 如果为 true，我们不会将整个经验回放缓冲区保留在 VRAM 中
+g: 0 # 使用第几张可见 GPU，可通过 --g=<gpu_index> 覆盖
+buffer_cpu_only: True # 如果为 true,将数据集保存在CPU内存中
 
 # --- 日志选项 ---
 use_tensorboard: True # 将结果记录到 TensorBoard
-save_model: False # 将模型保存到磁盘
-save_model_interval: 2000000 # 经过这么多时间步后保存模型
-checkpoint_path: "" # 从此路径加载检查点
-evaluate: False # 运行 test_nepisode 个回合评估模型并退出（不训练）
+save_model: False # 是否保存模型
+save_model_interval: 2000000 # 保存模型频率
+checkpoint_path: "" # 模型保存路径
+evaluate: False # 是否进行训练期间的评估
 load_step: 0 # 加载训练到指定时间步的模型（0 表示选择最大可用步数）
 save_replay: False # 保存从 checkpoint_path 加载模型的回放
 local_results_path: "results" # 本地结果的路径
-use_wandb: True 
+use_wandb: False 
 resume_id: null
 wandb_project_name: "offpymarl" # WandB 项目名称
 
@@ -44,6 +50,7 @@ grad_norm_clip: 10 # 将梯度的 L2 范数裁剪至该阈值
 
 # --- 智能体参数 ---
 agent: "rnn" # 默认 RNN 智能体
+# "另一种是 MLP 智能体"
 rnn_hidden_dim: 64 # 默认 RNN 智能体的隐藏状态大小
 obs_agent_id: True # 在观测中包含智能体的 one-hot ID
 obs_last_action: True # 在观测中包含智能体的上一个动作（one-hot）
@@ -54,10 +61,10 @@ label: "default_label"
 
 
 # --- 从 epymarl 添加 ---
-standardise_returns: False
+standardise_returns: False # 是否对 returns标准化处理 returns = (returns - mean) / std
 standardise_rewards: False
 
 
-offline_batch_size: 32
+offline_batch_size: 32 # offline训练每次梯度更新从数据集中采样 {} 条完整episode
 offline_data_quality: "expert"
-use_corrected_terminated: True
+use_corrected_terminated: True # 若数据中存在corrected or terminated用它替换原terminated

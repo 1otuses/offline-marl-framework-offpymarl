@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 def onehot_from_logits(logits, eps=0.0):
     """
-    给定一批 logits，使用 epsilon 贪婪策略（基于给定的 epsilon）
+    给定一批 logits,使用 epsilon 贪婪策略(基于给定的 epsilon)
     返回 one-hot 样本。
     """
     argmax_acs = (logits == logits.max(-1, keepdim=True)[0]).float()
@@ -25,14 +25,14 @@ def gumbel_softmax_sample(logits, temperature):
 
 # 基于 https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb 修改为 PyTorch 版本
 def gumbel_softmax(logits, temperature=1.0, hard=False, return_dist=False):
-    """从 Gumbel-Softmax 分布中采样，并可选择将结果离散化。
+    """从 Gumbel-Softmax 分布中采样,并可选择将结果离散化。
     参数：
-      logits：[batch_size, n_class]，未归一化的对数概率
-      temperature：非负标量
-      hard：若为 True，则取 argmax，但仍相对于软样本 y 求导
+      logits: [batch_size, n_class],未归一化的对数概率
+      temperature: 非负标量
+      hard: 若为 True,则取 argmax,但仍相对于软样本 y 求导
     返回：
-      [batch_size, n_class]，从 Gumbel-Softmax 分布得到的样本。
-      若 hard=True，返回 one-hot 样本；否则返回在类别维度上
+      [batch_size, n_class],从 Gumbel-Softmax 分布得到的样本。
+      若 hard=True,返回 one-hot 样本;否则返回在类别维度上
       概率和为 1 的概率分布。
     """
 

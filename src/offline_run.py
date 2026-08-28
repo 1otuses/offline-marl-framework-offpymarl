@@ -3,6 +3,8 @@ import pprint
 import time
 import threading
 import torch as th
+from tqdm import tqdm
+
 from types import SimpleNamespace as SN
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
@@ -15,7 +17,7 @@ from components.episode_buffer import ReplayBuffer
 from components.offline_buffer import OfflineBuffer
 from components.transforms import OneHot
 
-
+# 用收集或下载的离线数据进行offline算法训练
 def run(_run, _config, _log):
 
     # 检查参数有效性
@@ -28,7 +30,7 @@ def run(_run, _config, _log):
 
     logger = Logger(_log)
 
-    _log.info("Experiment Parameters:")
+    _log.info("实验参数:")
     experiment_params = pprint.pformat(_config,
                                        indent=4,
                                        width=1)
@@ -196,7 +198,7 @@ def run_sequential(args, logger):
         learner.save_models(save_path)
     
     runner.close_env()
-    logger.console_logger.info("Finish Training")
+    logger.console_logger.info("训练完成")
 
 def train_sequential(args, logger, learner, runner, offline_buffer):
     t_env = 0
@@ -221,6 +223,12 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
     
     test_time_total += time.time() - test_start_time
 
+    training_progress = tqdm(
+        total=t_max,
+        desc="Offline training",
+        unit="update",
+        dynamic_ncols=True,
+    )
     while t_env < t_max:
         episode_sample = offline_buffer.sample(batch_size_train)
         if episode_sample.device != args.device:
@@ -230,6 +238,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
         learner.train(episode_sample, t_env, episode)
         
         t_env += 1
+        training_progress.update(1)
         episode += batch_size_run
         # 偶尔执行一次测试运行并进行最终评估
         if (t_env - last_test_T) / args.test_interval >= 1 or t_env >= t_max:
@@ -259,6 +268,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
             logger.log_stat("episode", episode, t_env)
             logger.print_recent_stats()
 
+    training_progress.close()
     logger.console_logger.info("Finish training sequential")
             
 
@@ -278,19 +288,27 @@ def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
         batch_size_train = args.offline_batch_size
         episode = 0
         last_log_T = - args.log_interval - 1
+        behaviour_progress = tqdm(
+            total=max(args.behaviour_t_max + 1, 0),
+            desc="Behaviour policy training",
+            unit="update",
+            dynamic_ncols=True,
+        )
         while training_steps <= args.behaviour_t_max:
             episode_sample = offline_buffer.sample(batch_size_train)
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)
             learner.train_behaviour(episode_sample)
             training_steps += 1 # CFCQL计算“填充”但我直接+1
+            behaviour_progress.update(1)
             
             episode += batch_size_train
             if (training_steps - last_log_T) >= args.log_interval:
                 last_log_T = training_steps
                 logger.log_stat("episode", episode, training_steps)
                 logger.print_recent_stats()
-            
+
+        behaviour_progress.close()
         os.makedirs(default_behaviour_model_path, exist_ok=True)
         logger.console_logger.info("Saving behaviour models to {}".format(default_behaviour_model_path))
         learner.save_behaviour_model(default_behaviour_model_path)
