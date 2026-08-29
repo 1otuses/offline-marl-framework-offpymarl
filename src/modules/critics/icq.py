@@ -16,15 +16,15 @@ class ICQCritic(nn.Module):
         # 设置网络层
         self.fc1 = nn.Linear(input_shape, self.critic_hidden_dim)
         self.fc2 = nn.Linear(self.critic_hidden_dim, self.critic_hidden_dim)
-        self.fc_v = nn.Linear(self.critic_hidden_dim, 1)
         self.fc3 = nn.Linear(self.critic_hidden_dim, self.n_actions)
+        self.fc_v = nn.Linear(self.critic_hidden_dim, 1) # V(s)
     
     def forward(self, inputs):
         x = F.relu(self.fc1(inputs))
         x = F.relu(self.fc2(x))
         v = self.fc_v(x)
         a = self.fc3(x) # 优势值
-        q = a + v 
+        q = a + v # Q(s,a) = A(s,a) + V(s)
         return q
 
     def _get_input_shape(self, scheme):

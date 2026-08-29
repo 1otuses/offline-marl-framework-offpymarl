@@ -14,7 +14,7 @@ class BCLearner:
         self.params = list(mac.parameters())
 
         match self.args.optim_type.lower():
-            case "rmsprop":
+            case "rmsprop": # RMSProp
                 self.optimiser = RMSprop(params=self.params, lr=self.args.lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
             case "adam":
                 self.optimiser = Adam(params=self.params, lr=self.args.lr, weight_decay=self.args.weight_decay)
@@ -31,7 +31,7 @@ class BCLearner:
             self.rew_ms = RunningMeanStd(shape=(1,), device=device)
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        # 获取相关张量
+        # 获取batch张量
         actions = batch["actions"]
         terminated = batch["terminated"].float()
         mask = batch["filled"].float()

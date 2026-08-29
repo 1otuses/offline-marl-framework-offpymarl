@@ -6,6 +6,7 @@ from modules.critics import REGISTRY as critic_registry
 from components.standarize_stream import RunningMeanStd
 
 
+# 作为online训练
 class MADDPGLearner:
     def __init__(self, mac, scheme, logger, args):
         self.args = args

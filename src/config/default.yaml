@@ -24,9 +24,10 @@ buffer_cpu_only: True # 如果为 true,将数据集保存在CPU内存中
 
 # --- 日志选项 ---
 use_tensorboard: True # 将结果记录到 TensorBoard
-save_model: False # 是否保存模型
+save_model: True # 是否保存模型
 save_model_interval: 2000000 # 保存模型频率
 checkpoint_path: "" # 模型保存路径
+continue_training: False # True: 从 checkpoint_path 恢复训练状态并继续训练，t_max 表示最终总步数
 evaluate: False # 是否进行训练期间的评估
 load_step: 0 # 加载训练到指定时间步的模型（0 表示选择最大可用步数）
 save_replay: False # 保存从 checkpoint_path 加载模型的回放

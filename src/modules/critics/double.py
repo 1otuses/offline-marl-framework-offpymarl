@@ -1,7 +1,7 @@
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-
+# 双Q网络
 class DoubleCritic(nn.Module):
     def __init__(self, scheme, args):
         super(DoubleCritic, self).__init__()
@@ -18,7 +18,7 @@ class DoubleCritic(nn.Module):
         self.fc1 = nn.Linear(self.input_dim, args.critic_hidden_dim)
         self.fc2 = nn.Linear(args.critic_hidden_dim, args.critic_hidden_dim)
         self.fc3 = nn.Linear(args.critic_hidden_dim, self.n_actions)
-        # TODO 添加可选参数，是否决斗
+        # TODO 添加可选参数，是否采用Dueling思想
         self.fc3_v = nn.Linear(args.critic_hidden_dim, 1)
 
         self.fc4 = nn.Linear(self.input_dim, args.critic_hidden_dim)
@@ -27,15 +27,15 @@ class DoubleCritic(nn.Module):
         self.fc6_v = nn.Linear(args.critic_hidden_dim, 1)
     
     def forward(self, X):
-        assert len(X.shape) == 4
+        assert len(X.shape) == 4 # [B, T, N, input_dim]
         bs, t, n_agents, _ = X.shape
-        X = X.reshape(-1, self.input_dim)
+        X = X.reshape(-1, self.input_dim) # [B*T*N, input_dim] 以-1维度为标准展平
 
         h1 = F.relu(self.fc1(X))
         h2 = F.relu(self.fc2(h1))
         a1 = self.fc3(h2) 
-        v1 = self.fc3_v(h2)
-        q1 = (a1+v1).reshape(bs, t, n_agents, -1)
+        v1 = self.fc3_v(h2) # v1会广播并与a1相加
+        q1 = (a1+v1).reshape(bs, t, n_agents, -1) # [B*T*N, actions]-->[B, T, N, actions] 再以-1维度展开
 
         h1_2 = F.relu(self.fc4(X))
         h2_2 = F.relu(self.fc5(h1_2))

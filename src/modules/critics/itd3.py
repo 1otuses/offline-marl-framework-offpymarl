@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# 对MADDPG方法改进:
 class ITD3Critic(nn.Module):
     def __init__(self, scheme, args):
         super(ITD3Critic, self).__init__()
@@ -27,15 +28,15 @@ class ITD3Critic(nn.Module):
             self.hidden_states = self.hidden_states.reshape(-1, self.args.hidden_dim)
 
     def forward(self, inputs, actions):
-        inputs = th.cat((inputs, actions), dim=-1)
+        inputs = th.cat((inputs, actions), dim=-1) # [B, T, N, inputs + actions]
         x = F.relu(self.fc1(inputs))
         if self.critic_rnn:
             bs = x.shape[0]
-            x = x.reshape(-1, self.args.hidden_dim)
+            x = x.reshape(-1, self.args.hidden_dim) # [B*T*N, hidden_dim]
             h = self.rnn(x, self.hidden_states)
             q = self.fc3(x)
             self.hidden_states = h
-            q = q.reshape(bs, -1, 1)
+            q = q.reshape(bs, -1, 1) # [B, T*N, 1]
         else:
             x = F.relu(self.fc2(x))
             q = self.fc3(x)

@@ -1,5 +1,7 @@
-## bash xx/medium.sh 0 qmix 2s1z_vs_3z medium 0.6
 # export CUDA_VISIBLE_DEVICES=$1 # 这里显示规定训练时使用哪个GPU
+# 用来online训练模型并收集数据集的bash脚本
+# bash test/collect_data/collect.sh <config> <map_name> <offline_data_quality> <stop_winrate> <g>
+# bash test/collect_data/collect.sh qmix 2s1z_vs_3z expert 0.9 1 3
 python src/main.py \
     --collect \
     --config=$1 \
@@ -9,8 +11,8 @@ python src/main.py \
     --save_replay_buffer=False \
     --num_episodes_collected=4000 \
     --stop_winrate=$4 \
-    --seed=1 \
-    --g=$5
+    --seed=$5 \
+    --g=$6
     # --config=$1:选择scr.algs/<algs_name>.yaml
     # 几个用于online的baseline算法:VDN,QMIX,QTRAN,COMA,MADDPG,MATD3
     # --env-config=$2:选择scr.envs/<env_name>.yaml

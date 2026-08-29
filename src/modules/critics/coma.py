@@ -20,11 +20,11 @@ class COMACritic(nn.Module):
         self.fc3 = nn.Linear(128, self.n_actions)
 
     def forward(self, batch, t=None):
-        inputs = self._build_inputs(batch, t=t)
+        inputs = self._build_inputs(batch, t=t) # 
         x = F.relu(self.fc1(inputs))
         x = F.relu(self.fc2(x))
         q = self.fc3(x)
-        return q
+        return q # 输出所有离散动作的价值Q
 
     def _build_inputs(self, batch, t=None):
         bs = batch.batch_size

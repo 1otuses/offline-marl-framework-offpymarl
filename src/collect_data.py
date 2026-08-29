@@ -9,6 +9,7 @@ from tqdm import tqdm
 from types import SimpleNamespace as SN
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
+from utils.checkpointing import load_training_state, save_training_state, select_checkpoint
 
 from learners import REGISTRY as le_REGISTRY
 from runners import REGISTRY as r_REGISTRY
@@ -170,29 +171,9 @@ def run_sequential(args, logger):
     if args.use_cuda:
         learner.cuda()
     
+    resume_state = {"t_env": 0, "episode": 0, "restored": False}
     if args.checkpoint_path != "":
-        timesteps = []
-        timestep_to_load = 0
-
-        if not os.path.isdir(args.checkpoint_path):
-            logger.console_logger.info("Checkpoint directiory {} doesn't exist".format(args.checkpoint_path))
-            return
-
-        # 遍历 args.checkpoint_path 中的所有文件
-        for name in os.listdir(args.checkpoint_path):
-            full_name = os.path.join(args.checkpoint_path, name)
-            # 检查名称为数字的目录
-            if os.path.isdir(full_name) and name.isdigit():
-                timesteps.append(int(name))
-
-        if args.load_step == 0:
-            # 选择最大时间步长
-            timestep_to_load = max(timesteps)
-        else:
-            # 选择最接近 load_step 的时间步
-            timestep_to_load = min(timesteps, key=lambda x: abs(x - args.load_step))
-
-        model_path = os.path.join(args.checkpoint_path, str(timestep_to_load))
+        model_path, timestep_to_load = select_checkpoint(args.checkpoint_path, args.load_step)
 
         logger.console_logger.info("Loading model from {}".format(model_path))
         learner.load_models(model_path)
@@ -201,12 +182,26 @@ def run_sequential(args, logger):
         if args.evaluate or args.save_replay:
             evaluate_sequential(args, runner, logger)
             return
+
+        if args.continue_training:
+            resume_state = load_training_state(model_path, learner, timestep_to_load)
+            runner.t_env = resume_state["t_env"]
+            if not resume_state["restored"]:
+                logger.console_logger.warning(
+                    "training_state.th was not found; resume t_env from the checkpoint directory "
+                    "and start with a new replay buffer"
+                )
+            logger.console_logger.info(
+                "Continuing training from t_env={} and episode={}".format(
+                    resume_state["t_env"], resume_state["episode"]
+                )
+            )
         
     # 开始训练
-    episode = 0
-    last_test_T = -args.test_interval - 1
-    last_log_T = 0
-    model_save_time = 0
+    episode = resume_state["episode"]
+    last_test_T = runner.t_env - args.test_interval - 1
+    last_log_T = runner.t_env
+    model_save_time = runner.t_env if args.continue_training else 0
     
     start_time = time.time()
     last_time = start_time
@@ -305,6 +300,12 @@ def run_sequential(args, logger):
             # 学习者应该处理保存/加载——将 actor 保存/加载委托给 mac，
             # 使用适当的文件名保存 Critic 和优化器状态
             learner.save_models(save_path)
+            save_training_state(
+                save_path,
+                runner.t_env,
+                episode + args.batch_size_run,
+                learner,
+            )
 
         episode += args.batch_size_run       
 
@@ -330,6 +331,7 @@ def run_sequential(args, logger):
         os.makedirs(save_path, exist_ok=True)
         logger.console_logger.info("Saving models to {}".format(save_path))
         learner.save_models(save_path)
+        save_training_state(save_path, runner.t_env, episode, learner)
     
     # 收集最后一批数据
     if args.offline_data_quality.lower() == 'full':
@@ -338,6 +340,11 @@ def run_sequential(args, logger):
     
     
 def args_sanity_check(config, _log):
+
+    if config.get("continue_training", False) and config.get("checkpoint_path", "") == "":
+        raise ValueError("continue_training=True requires checkpoint_path")
+    if config.get("continue_training", False) and not config.get("save_model", False):
+        _log.warning("continue_training is enabled but save_model is False; no new checkpoint will be saved")
 
     # 设置 CUDA 标志
     # config["use_cuda"] = True # Use cuda whenever possible!

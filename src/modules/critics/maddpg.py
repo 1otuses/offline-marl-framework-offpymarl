@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# 确定性策略,Crtic:学一个具体动作的标量Q(s,a)
 class MADDPGCritic(nn.Module):
     def __init__(self, scheme, args):
         super(MADDPGCritic, self).__init__()
@@ -17,7 +18,7 @@ class MADDPGCritic(nn.Module):
         self.fc3 = nn.Linear(args.hidden_dim, 1)
     
     def forward(self, inputs, actions):
-        inputs = th.cat((inputs, actions), dim=-1)
+        inputs = th.cat((inputs, actions), dim=-1) # [B, T, N, input_shape + n_actions]
         x = F.relu(self.fc1(inputs))
         x = F.relu(self.fc2(x))
         q = self.fc3(x)

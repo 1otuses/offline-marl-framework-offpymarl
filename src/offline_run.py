@@ -8,6 +8,7 @@ from tqdm import tqdm
 from types import SimpleNamespace as SN
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
+from utils.checkpointing import load_training_state, save_training_state, select_checkpoint
 import json
 
 from learners import REGISTRY as le_REGISTRY
@@ -139,29 +140,10 @@ def run_sequential(args, logger):
         learner.cuda()
 
 
+    resume_state = {"t_env": 0, "episode": 0, "restored": False}
+    resume_checkpoint = None
     if args.checkpoint_path != "":
-        timesteps = []
-        timestep_to_load = 0
-
-        if not os.path.isdir(args.checkpoint_path):
-            logger.console_logger.info("Checkpoint directiory {} doesn't exist".format(args.checkpoint_path))
-            return
-
-        # 遍历 args.checkpoint_path 中的所有文件
-        for name in os.listdir(args.checkpoint_path):
-            full_name = os.path.join(args.checkpoint_path, name)
-            # 检查名称为数字的目录
-            if os.path.isdir(full_name) and name.isdigit():
-                timesteps.append(int(name))
-
-        if args.load_step == 0:
-            # 选择最大时间步长
-            timestep_to_load = max(timesteps)
-        else:
-            # 选择最接近 load_step 的时间步
-            timestep_to_load = min(timesteps, key=lambda x: abs(x - args.load_step))
-
-        model_path = os.path.join(args.checkpoint_path, str(timestep_to_load))
+        model_path, timestep_to_load = select_checkpoint(args.checkpoint_path, args.load_step)
 
         logger.console_logger.info("Loading model from {}".format(model_path))
         learner.load_models(model_path)
@@ -169,6 +151,9 @@ def run_sequential(args, logger):
         if args.evaluate or args.save_replay:
             evaluate_sequential(args, runner)
             return
+
+        if args.continue_training:
+            resume_checkpoint = (model_path, timestep_to_load)
     
     # 创建离线数据
     match args.env:
@@ -186,27 +171,49 @@ def run_sequential(args, logger):
 
     if getattr(args, "train_behaviour", False):
         train_behaviour_sequential(args, logger, learner, runner, offline_buffer)
+
+    if resume_checkpoint is not None:
+        model_path, timestep_to_load = resume_checkpoint
+        resume_state = load_training_state(model_path, learner, timestep_to_load)
+        if not resume_state["restored"]:
+            logger.console_logger.warning(
+                "training_state.th was not found; resume t_env from the checkpoint directory"
+            )
+        logger.console_logger.info(
+            "Continuing training from t_env={} and episode={}".format(
+                resume_state["t_env"], resume_state["episode"]
+            )
+        )
     
     
     logger.console_logger.info("Beginning  offline training with {} iterations".format(args.t_max))
-    train_sequential(args, logger, learner, runner, offline_buffer)
+    final_t_env, final_episode = train_sequential(
+        args,
+        logger,
+        learner,
+        runner,
+        offline_buffer,
+        resume_state["t_env"],
+        resume_state["episode"],
+    )
 
     if args.save_model:
-        save_path = os.path.join(args.model_save_dir, str(args.t_max))
+        save_path = os.path.join(args.model_save_dir, str(final_t_env))
         os.makedirs(save_path, exist_ok=True)
         logger.console_logger.info("Save final model checkpoint in {}".format(save_path))
         learner.save_models(save_path)
+        save_training_state(save_path, final_t_env, final_episode, learner)
     
     runner.close_env()
     logger.console_logger.info("训练完成")
 
-def train_sequential(args, logger, learner, runner, offline_buffer):
-    t_env = 0
-    episode = 0
+def train_sequential(args, logger, learner, runner, offline_buffer, start_t_env=0, start_episode=0):
+    t_env = start_t_env
+    episode = start_episode
     t_max = args.t_max
-    model_save_time = 0
-    last_test_T = 0
-    last_log_T = 0
+    model_save_time = t_env if args.continue_training else 0
+    last_test_T = t_env
+    last_log_T = t_env
     start_time = time.time()
     last_time = start_time
     test_time_total = 0
@@ -225,6 +232,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
 
     training_progress = tqdm(
         total=t_max,
+        initial=min(t_env, t_max),
         desc="Offline training",
         unit="update",
         dynamic_ncols=True,
@@ -261,6 +269,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
             os.makedirs(save_path, exist_ok=True)
             logger.console_logger.info("Saving models to {}".format(save_path))
             learner.save_models(save_path)
+            save_training_state(save_path, t_env, episode, learner)
             model_save_time = t_env
         
         if (t_env - last_log_T) >= args.log_interval:
@@ -270,6 +279,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer):
 
     training_progress.close()
     logger.console_logger.info("Finish training sequential")
+    return t_env, episode
             
 
 def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
@@ -315,6 +325,11 @@ def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
         logger.console_logger.info("Finish training behaviour proxy policy")
             
 def args_sanity_check(config, _log):
+
+    if config.get("continue_training", False) and config.get("checkpoint_path", "") == "":
+        raise ValueError("continue_training=True requires checkpoint_path")
+    if config.get("continue_training", False) and not config.get("save_model", False):
+        _log.warning("continue_training is enabled but save_model is False; no new checkpoint will be saved")
 
     # 设置 CUDA 标志
     # config["use_cuda"] = True # Use cuda whenever possible!

@@ -6,6 +6,8 @@ import torch as th
 from torch.optim import RMSprop
 
 
+
+# COMA:反事实信用分配,基于q-learning
 class COMALearner:
     def __init__(self, mac, scheme, logger, args):
         self.args = args
@@ -30,7 +32,6 @@ class COMALearner:
         self.critic_optimiser = RMSprop(params=self.critic_params, lr=args.critic_lr, alpha=args.optim_alpha, eps=args.optim_eps)
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
-        # 获取相关张量
         bs = batch.batch_size
         max_t = batch.max_seq_length
         rewards = batch["reward"][:, :-1]
