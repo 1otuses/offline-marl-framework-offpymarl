@@ -96,7 +96,16 @@ def _get_config(params, arg_name, subfolder):
             break
     
     if config_name is not None:
-        with open(os.path.join(os.path.dirname(__file__), "config", subfolder, "{}.yaml".format(config_name)), "r") as f:
+        config_root = os.path.join(os.path.dirname(__file__), "config", subfolder)
+        config_path = os.path.join(config_root, "{}.yaml".format(config_name))
+        if subfolder == "algs" and not os.path.isfile(config_path):
+            candidates = [os.path.join(config_root, mode, "{}.yaml".format(config_name))
+                          for mode in ("online", "offline")]
+            candidates = [path for path in candidates if os.path.isfile(path)]
+            if len(candidates) != 1:
+                raise ValueError("Cannot uniquely resolve algorithm '{}'; use --config=online/<name> or offline/<name>".format(config_name))
+            config_path = candidates[0]
+        with open(config_path, "r") as f:
             try:
                 config_dict = yaml.load(f)
             except yaml.YAMLError as exc:

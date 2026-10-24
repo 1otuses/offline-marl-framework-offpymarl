@@ -63,7 +63,7 @@ class OMARLearner:
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         avail_actions = batch["avail_actions"][:, :-1]
-        mask = batch["filled"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         
         mask = mask.repeat(1, 1, self.n_agents).unsqueeze(-1) # (bs, seq_len-1, n_agents, 1)
@@ -72,14 +72,14 @@ class OMARLearner:
         mac_out = []
         self.mac.init_hidden(bs)
         for t in range(max_t - 1):
-            agent_outs = self.mac.forward(batch, t=t)
+            agent_outs = self.mac.forward(batch, t=t, test_mode=True)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # (bs, seq_len-1, n_agents, n_actions)
 
-        mac_out[avail_actions == 0] =0
+        mac_out = mac_out.masked_fill(avail_actions == 0, 0)
         pi_taken = th.gather(mac_out, dim=-1, index=actions)
         pi_taken[mask == 0] = 1.0
-        log_pi_taken = th.log(pi_taken)
+        log_pi_taken = th.log(pi_taken.clamp_min(1e-10))
         assert not th.isnan(log_pi_taken).any()
     
         critic_inputs = self.critic.build_inputs(batch)
@@ -134,12 +134,13 @@ class OMARLearner:
         # max_acs = th.gather(candidate_acs, -1, max_inds)#bs,ts,na,1
         # one_hot_max_acs = th.nn.functional.one_hot(max_acs,num_classes=action_dim).float()#bs,ts,na,ad
 
-        max_q_acs = q_vals.argmax(-1, keepdim=True) # (bs, max_t-1, n_agents, 1)
+        max_q_acs = q_vals.masked_fill(avail_actions == 0, -1e10).argmax(-1, keepdim=True) # (bs, max_t-1, n_agents, 1)
         
         # one_hot_max_acs = th.nn.functional.one_hot(max_q_acs, num_classes=self.n_actions).float() # (bs, max_t-1, n_agents, n_actions)
 
         # omar_loss = th.nn.functional.mse_loss(mac_out.view(-1,action_dim), one_hot_max_acs.view(-1,action_dim).detach())
-        omar_loss = th.nn.functional.cross_entropy(mac_out.view(-1, self.n_actions), max_q_acs.view(-1,))
+        pi_max = th.gather(mac_out, dim=-1, index=max_q_acs)
+        omar_loss = -(pi_max.clamp_min(1e-10).log() * mask).sum() / mask.sum()
         
         loss = (1-self.args.omar_coe) * coma_loss + self.args.omar_coe * omar_loss
     
@@ -185,7 +186,7 @@ class OMARLearner:
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :]
         terminated = batch["terminated"][:, :-1].float()
-        mask = batch["filled"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = batch["avail_actions"][:]
         
@@ -198,7 +199,7 @@ class OMARLearner:
             target_mac_out = []
             self.target_mac.init_hidden(bs)
             for t in range(max_t):
-                target_agent_outs = self.target_mac.forward(batch, t=t)
+                target_agent_outs = self.target_mac.forward(batch, t=t, test_mode=True)
                 target_mac_out.append(target_agent_outs)
             target_mac_out = th.stack(target_mac_out, dim=1)  
             target_mac_out[avail_actions == 0] = 0
@@ -303,4 +304,4 @@ class OMARLearner:
         self.critic.load_state_dict(th.load("{}/critic.th".format(path), map_location=lambda storage, loc: storage))
         self.agent_optimiser.load_state_dict(th.load("{}/agent_opt.th".format(path), map_location=lambda storage, loc: storage))
         self.critic_optimiser.load_state_dict(th.load("{}/critic_opt.th".format(path), map_location=lambda storage, loc: storage))
-        self._update_targets()
+        self._update_targets_hard()

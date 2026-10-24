@@ -1,8 +1,6 @@
 from components.episode_buffer import EpisodeBatch
 import torch as th
 from torch.optim import RMSprop, Adam
-import torch.nn.functional as F
-from components.standarize_stream import RunningMeanStd
 
 
 class BCLearner:
@@ -24,41 +22,29 @@ class BCLearner:
         self.log_stats_t = -self.args.learner_log_interval - 1
         self.training_steps = 0
 
-        device = "cuda" if args.use_cuda else "cpu"
-        if self.args.standardise_returns:
-            self.ret_ms = RunningMeanStd(shape=(self.n_agents,), device=device)
-        if self.args.standardise_rewards:
-            self.rew_ms = RunningMeanStd(shape=(1,), device=device)
-
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # 获取batch张量
         actions = batch["actions"]
         terminated = batch["terminated"].float()
-        mask = batch["filled"].float()
+        mask = batch["filled"].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = batch["avail_actions"].type(th.long)
         
-        if self.args.standardise_rewards:
-            self.rew_ms.update(rewards)
-            rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
-            
-        #agent_outs[reshaped_avail_actions == 0] = -1e10
-
         # 计算估计的 Q 值
         mac_out = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs = self.mac.forward(batch, t=t)
+            agent_outs = self.mac.forward(batch, t=t, test_mode=True)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # 沿时间维拼接
         
-        mac_out[avail_actions == 0] = -1e10
+        mac_out = mac_out.masked_fill(avail_actions == 0, 0)
         #mac_out = F.softmax(mac_out, dim=-1) # get softmax policy
 
         bs, t, n_agents, ac_dim = mac_out.size()
         #print(mac_out.shape, actions.shape)
-        loss = F.cross_entropy(mac_out.reshape(-1, ac_dim), actions.squeeze(-1).reshape(-1), reduction="sum")
-        loss /= (mask.sum() * n_agents)
+        pi_taken = th.gather(mac_out, dim=-1, index=actions).squeeze(-1)
+        loss = -(pi_taken.clamp_min(1e-10).log() * mask).sum() / (mask.sum() * n_agents)
 
         self.optimiser.zero_grad()
         loss.backward()

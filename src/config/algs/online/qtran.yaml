@@ -1,5 +1,5 @@
 # --- QMIX 具体参数 ---
-
+# online
 # 使用 epsilon 贪婪动作选择器
 action_selector: "epsilon_greedy"
 epsilon_start: 1.0
@@ -15,8 +15,15 @@ target_update_interval_or_tau: 200
 
 # 使用 Q_Learner 进行训练
 agent_output_type: "q"
-learner: "q_learner"
+learner: "qtran_learner"
 double_q: True
-mixer: # 混合器设为 None
+mixer: "qtran_base"
+mixing_embed_dim: 64
+qtran_arch: "qtran_paper"
 
-name: "iql"
+opt_loss: 1
+nopt_min_loss: 0.1
+
+network_size: small
+
+name: "qtran"

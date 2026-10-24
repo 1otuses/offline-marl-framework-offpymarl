@@ -3,6 +3,7 @@ from .maddpg import MADDPGCritic
 from .icq import ICQCritic
 from .itd3 import ITD3Critic
 from .double import DoubleCritic
+from .mlp import MLPCritic
 
 REGISTRY = {}
 
@@ -15,3 +16,4 @@ REGISTRY["maddpg_critic"] = MADDPGCritic
 REGISTRY["icq_critic"] = ICQCritic
 REGISTRY["itd3_critic"] = ITD3Critic
 REGISTRY["double_critic"] = DoubleCritic
+REGISTRY["mlp_critic"] = MLPCritic

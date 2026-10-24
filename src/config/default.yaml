@@ -68,4 +68,4 @@ standardise_rewards: False
 
 offline_batch_size: 32 # offline训练每次梯度更新从数据集中采样 {} 条完整episode
 offline_data_quality: "expert"
-use_corrected_terminated: True # 若数据中存在corrected or terminated用它替换原terminated
+use_corrected_terminated: False # True 仅用于兼容旧实验的提前终止处理，会丢弃最后一步奖励

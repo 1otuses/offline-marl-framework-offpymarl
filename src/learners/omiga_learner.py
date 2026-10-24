@@ -60,7 +60,7 @@ class OMIGALearner:
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
-        mask = batch["filled"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         # 终止点 1 -> 0
         avail_actions = batch["avail_actions"]
@@ -106,10 +106,10 @@ class OMIGALearner:
         mac_out = []
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs = self.mac.forward(batch, t=t)
+            agent_outs = self.mac.forward(batch, t=t, test_mode=True)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)
-        mac_out[avail_actions==0] = 1e-10
+        mac_out = mac_out.masked_fill(avail_actions == 0, 1e-10)
        
         dist = Categorical(probs=mac_out[:, :-1])
         

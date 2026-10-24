@@ -85,6 +85,13 @@ class Logger:
 
         self.console_logger.info(log_str)
 
+    def close(self):
+        if self.use_tb or self.use_wandb:
+            self.writer.flush()
+            self.writer.close()
+        if self.use_wandb:
+            self.wandb_run.finish()
+
 
 # 设置自定义记录器
 def get_logger():
@@ -97,4 +104,3 @@ def get_logger():
     logger.setLevel('DEBUG')
 
     return logger
-

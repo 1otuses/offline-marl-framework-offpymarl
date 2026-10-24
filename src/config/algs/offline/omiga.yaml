@@ -1,5 +1,5 @@
 # --- QMIX+CQL 具体参数 ---
-
+# offline
 # 使用 epsilon 贪婪动作选择器
 action_selector: "epsilon_greedy"
 epsilon_start: 1.0

@@ -62,6 +62,8 @@ class ParallelRunner:
     def close_env(self):
         for parent_conn in self.parent_conns:
             parent_conn.send(("close", None))
+        for process in self.ps:
+            process.join(timeout=5)
 
     def reset(self):
         self.batch = self.new_batch()
@@ -204,7 +206,7 @@ class ParallelRunner:
             print(f"return_mean: {np.mean(self.test_returns)}")
             print(f"return_std: {np.std(self.test_returns)}")
             return self.test_stats, self.test_returns
-        elif not evaluate_mode and self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
+        elif not test_mode and not evaluate_mode and self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
             self._log(cur_returns, cur_stats, log_prefix)
             if hasattr(self.mac.action_selector, "epsilon"):
                 self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)

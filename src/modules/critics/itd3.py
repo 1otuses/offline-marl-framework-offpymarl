@@ -5,6 +5,11 @@ import torch.nn.functional as F
 
 # 对MADDPG方法改进:
 class ITD3Critic(nn.Module):
+    """
+    Independent
+    inputs: [B, N, O_i^t + A_i^{t-1} + agent_id], actions: [B, N, A_i^t]
+    RNN 模式先调用 init_hidden(B)，再逐时间步调用 forward。
+    """
     def __init__(self, scheme, args):
         super(ITD3Critic, self).__init__()
         self.args = args
@@ -28,25 +33,27 @@ class ITD3Critic(nn.Module):
             self.hidden_states = self.hidden_states.reshape(-1, self.args.hidden_dim)
 
     def forward(self, inputs, actions):
-        inputs = th.cat((inputs, actions), dim=-1) # [B, T, N, inputs + actions]
+        inputs = th.cat((inputs, actions), dim=-1) # [B, N, inputs + actions]
         x = F.relu(self.fc1(inputs))
         if self.critic_rnn:
             bs = x.shape[0]
-            x = x.reshape(-1, self.args.hidden_dim) # [B*T*N, hidden_dim]
+            x = x.reshape(-1, self.args.hidden_dim) # [B*N, hidden_dim]
             h = self.rnn(x, self.hidden_states)
-            q = self.fc3(x)
+            q = self.fc3(h)
             self.hidden_states = h
-            q = q.reshape(bs, -1, 1) # [B, T*N, 1]
+            q = q.reshape(bs, self.n_agents, 1) # [B, N, 1]
         else:
             x = F.relu(self.fc2(x))
             q = self.fc3(x)
         return q
     
     def _get_input_shape(self, scheme):
+        """
+        input_shape = obs_i + last_action_i + agent_id + 当前actions_i
+        """
         input_shape = scheme["obs"]["vshape"]
         if self.args.obs_last_action:
             input_shape += self.n_actions
         if self.args.obs_agent_id:
             input_shape += self.n_agents
         return input_shape + self.n_actions 
-

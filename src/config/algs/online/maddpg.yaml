@@ -1,5 +1,5 @@
 # --- MADDPG 具体参数 ---
-
+# online
 runner: "episode"
 
 buffer_size: 50000

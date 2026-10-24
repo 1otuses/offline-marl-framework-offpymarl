@@ -14,10 +14,10 @@ class QMixer(nn.Module):
 
         self.embed_dim = args.mixing_embed_dim
 
-        if getattr(args, "hypernet_layers", 1) == 1:
+        if getattr(args, "hypernet_layers", 1) == 1: # 一层超网络
             self.hyper_w_1 = nn.Linear(self.state_dim, self.embed_dim * self.n_agents)
             self.hyper_w_final = nn.Linear(self.state_dim, self.embed_dim)
-        elif getattr(args, "hypernet_layers", 1) == 2:
+        elif getattr(args, "hypernet_layers", 1) == 2: # 两层超网络
             hypernet_embed = self.args.hypernet_embed
             self.hyper_w_1 = nn.Sequential(nn.Linear(self.state_dim, hypernet_embed),
                                            nn.ReLU(),

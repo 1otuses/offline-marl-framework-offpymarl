@@ -1,5 +1,5 @@
-# --- QMIX 具体参数 ---
-
+# --- QMIX+CQL 具体参数 ---
+# offline
 # 使用 epsilon 贪婪动作选择器
 action_selector: "epsilon_greedy"
 epsilon_start: 1.0
@@ -11,18 +11,27 @@ runner: "episode"
 buffer_size: 5000
 
 # 每 {} 个回合更新一次目标网络
-target_update_interval_or_tau: 200
+target_update_interval_or_tau: 0.01
 
 # 使用 Q_Learner 进行训练
 agent_output_type: "q"
 learner: "q_learner"
 double_q: True
-mixer: "qmix"
+# mixer: "qmix"
+mixer: "nmix"
 mixing_embed_dim: 32
 hypernet_layers: 2
 hypernet_embed: 64
 
-
 cal_target: "td_lambda"
 td_lambda: 0.6 # 6h_vs_8z 为 0.3，其他为 0.6
-name: "qmix"
+
+cql_alpha: 1. # 很大程度上取决于数据集的质量
+cql_type: "individual" # individual: 对每个智能体的 Q 值进行 CQL 正则化
+# global_simplified: 对联合 Q 值进行 CQL 正则化，使用简化的公式
+# global_raw:
+
+raw_sample_actions: 32
+
+name: "qmix_cql"
+

@@ -1,5 +1,5 @@
 # --- COMA 具体参数 ---
-
+# online
 action_selector: "multinomial"
 epsilon_start: .5
 epsilon_finish: .01

@@ -101,7 +101,11 @@ class QLearner:
             target_max_na_qvals = th.gather(target_mac_out, 3, cur_max_actions).squeeze(3)
             cons_max_q_vals = th.gather(mac_out, 3, cur_max_actions).squeeze(3)
         else:
-            target_max_qvals = target_mac_out.max(dim=3)[0]
+            target_max_na_qvals = target_mac_out.max(dim=3)[0]
+            cons_max_q_vals = mac_out.max(dim=3)[0]
+
+        chosen_action_qvals = chosen_action_na_qvals
+        target_max_qvals = target_max_na_qvals
 
         # 混合
         if self.mixer is not None:
@@ -259,4 +263,5 @@ class QLearner:
         self.target_mac.load_models(path)
         if self.mixer is not None:
             self.mixer.load_state_dict(th.load("{}/mixer.th".format(path), map_location=lambda storage, loc: storage))
+            self.target_mixer.load_state_dict(self.mixer.state_dict())
         self.optimiser.load_state_dict(th.load("{}/opt.th".format(path), map_location=lambda storage, loc: storage))

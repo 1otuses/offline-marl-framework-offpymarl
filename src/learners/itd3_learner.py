@@ -75,8 +75,9 @@ class ITD3Learner:
             # avail_actions = batch["avail_actions"][:, :-1]
             actions_4bc = batch["actions"][:, :-1]
             terminated = batch["terminated"][:, :-1].float()
-            terminated = terminated.unsqueeze(2).expand(-1, -1, self.n_agents, -1) # (bs, T-1, n_agents, 1)
-            mask = 1 - terminated
+            mask = batch["filled"][:, :-1].float().clone()
+            mask[:, 1:] *= 1 - terminated[:, :-1]
+            mask = mask.unsqueeze(2).expand(-1, -1, self.n_agents, -1)
             # 训练 Actor
             self.mac.init_hidden(batch_size)
             self.critic1.init_hidden(batch.batch_size)
@@ -94,15 +95,14 @@ class ITD3Learner:
 
             if "bc" in self.args.name: # matd3+bc
                 pis = th.cat(pis, dim=1) # (bs, (T-1), n_agents, n_actions)
-                pis_mask = mask.expand_as(pis)
                 pis = pis.reshape(-1, self.n_actions)
-                bc_loss = F.cross_entropy(pis, actions_4bc.reshape(-1), reduction="sum")
-                bc_loss = bc_loss/(pis_mask.sum())
+                valid = mask.reshape(-1).bool()
+                bc_loss = F.cross_entropy(pis[valid], actions_4bc.reshape(-1)[valid])
                 
                 mask = mask.reshape(-1, 1)
-                #lmbda = self.args.td3_alpha / ((q * mask).sum()/mask.sum()).abs().mean().detach()
-                lmbda = self.args.td3_alpha / ((q * mask).abs().sum().detach() / mask.sum()) 
-                td3_loss = - lmbda * (q * mask).mean() 
+                q_scale = (q * mask).abs().sum().detach() / mask.sum()
+                lmbda = self.args.td3_alpha / q_scale.clamp_min(1e-6)
+                td3_loss = - lmbda * (q * mask).sum() / mask.sum()
                 
                 actor_loss = td3_loss + bc_loss
                 
@@ -162,7 +162,7 @@ class ITD3Learner:
                 masked_pis = masked_pis.reshape(-1, 1) # (bs * (T-1) * n_agents, n_actions)
 
                 mask = mask.reshape(-1, 1)
-                actor_loss = - (q * mask).mean() + self.args.reg * ( masked_pis ** 2).mean()
+                actor_loss = - (q * mask).sum() / mask.sum() + self.args.reg * (masked_pis ** 2).sum() / (mask.sum() * self.n_actions)
 
             # 优化智能体
             self.agent_optimiser.zero_grad()
@@ -207,12 +207,14 @@ class ITD3Learner:
         actions = batch["actions_onehot"]
         # avail_actions = batch["avail_actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
+        mask[:, 1:] *= 1 - terminated[:, :-1]
         rewards = rewards.unsqueeze(2).expand(-1, -1, self.n_agents, -1) # (bs, T-1, n_agents, 1)
         terminated = terminated.unsqueeze(2).expand(-1, -1, self.n_agents, -1) # (bs, T-1, n_agents, 1)
-        mask = 1 - terminated
+        mask = mask.unsqueeze(2).expand(-1, -1, self.n_agents, -1)
 
         if self.args.standardise_rewards:
-            self.rew_ms.update(rewards)
+            self.rew_ms.update(rewards[mask.bool()].reshape(-1, 1))
             rewards = (rewards - self.rew_ms.mean) / th.sqrt(self.rew_ms.var)
         
         # 训练 Critic
@@ -244,22 +246,22 @@ class ITD3Learner:
         target_vals1 = th.stack(target_vals1[1:], dim=1)
         target_vals2 = th.stack(target_vals2[1:], dim=1)
         target_vals = th.min(target_vals1, target_vals2)
-        target_vals = target_vals.reshape(-1, 1) # (batch_size*(T-1)*n_agents, 1)
         
         if self.args.standardise_returns:
-            target_vals = target_vals * th.sqrt(self.ret_ms.var) + self.ret_ms.mean
+            target_vals = target_vals * th.sqrt(self.ret_ms.var).view(1, 1, -1, 1) + self.ret_ms.mean.view(1, 1, -1, 1)
 
-        targets = rewards.reshape(-1, 1) + self.args.gamma * (1 - terminated.reshape(-1, 1)) * target_vals
+        targets = rewards + self.args.gamma * (1 - terminated) * target_vals
 
         if self.args.standardise_returns:
-            self.ret_ms.update(targets)
-            targets = (targets - self.ret_ms.mean) / th.sqrt(self.ret_ms.var)
+            self.ret_ms.update(targets.detach().squeeze(-1)[mask[:, :, 0, 0].bool()])
+            targets = (targets - self.ret_ms.mean.view(1, 1, -1, 1)) / th.sqrt(self.ret_ms.var).view(1, 1, -1, 1)
+        targets = targets.reshape(-1, 1)
         
         td_error1 = (q_taken1.reshape(-1, 1) - targets.detach())
         td_error2 = (q_taken2.reshape(-1, 1) - targets.detach())
         masked_td_error1  = td_error1 * mask.reshape(-1, 1)
         masked_td_error2  = td_error2 * mask.reshape(-1, 1)
-        td_loss = 0.5 * (masked_td_error1 ** 2).mean() + 0.5 * (masked_td_error2 ** 2).mean()
+        td_loss = 0.5 * ((masked_td_error1 ** 2).sum() + (masked_td_error2 ** 2).sum()) / mask.sum()
 
         # if ("cql" in self.args.name or "omar" in self.args.name) and getattr(self.args, "cql_type", "vanilla")=="vanilla":
         #     # 遍历动作
@@ -305,9 +307,9 @@ class ITD3Learner:
         
         critic_log["td_error1_abs"] = masked_td_error1.abs().sum().item() / mask_elems
         critic_log["td_error2_abs"] = masked_td_error2.abs().sum().item() / mask_elems
-        critic_log["q_taken1_mean"] = (q_taken1).sum().item() / mask_elems
-        critic_log["q_taken2_mean"] = (q_taken2).sum().item() / mask_elems
-        critic_log["target_mean"] = targets.sum().item() / mask_elems
+        critic_log["q_taken1_mean"] = (q_taken1 * mask).sum().item() / mask_elems
+        critic_log["q_taken2_mean"] = (q_taken2 * mask).sum().item() / mask_elems
+        critic_log["target_mean"] = (targets * mask.reshape(-1, 1)).sum().item() / mask_elems
         return critic_log, top_acs
         
     def _build_critic_inputs(self, batch, t=None):
@@ -320,10 +322,10 @@ class ITD3Learner:
 
         if self.args.obs_last_action:
             if t == 0:
-                inputs.append(th.zeros_like(batch["actions_onehot"][:, 0:1]))
+                last_actions = th.zeros_like(batch["actions_onehot"][:, 0:1])
             elif isinstance(t, int):
                 #assert all(batch["actions_onehot"][:, slice(t - 1, t)]==batch["actions_onehot"][:, t-1:t])
-                inputs.append(batch["actions_onehot"][:, slice(t - 1, t)])
+                last_actions = batch["actions_onehot"][:, slice(t - 1, t)]
             else:
                 last_actions = th.cat([th.zeros_like(batch["actions_onehot"][:, 0:1]),
                                         batch["actions_onehot"][:, :-1]], dim=1)
@@ -385,9 +387,9 @@ class ITD3Learner:
         self.mac.load_models(path)
         self.target_mac.load_models(path)
         self.critic1.load_state_dict(th.load("{}/critic1.th".format(path), map_location=lambda storage, loc: storage))
-        self.target_critic1 = copy.deepcopy(self.critic1)
+        self.target_critic1.load_state_dict(self.critic1.state_dict())
         self.critic2.load_state_dict(th.load("{}/critic2.th".format(path), map_location=lambda storage, loc: storage))
-        self.target_critic2 = copy.deepcopy(self.critic2)
+        self.target_critic2.load_state_dict(self.critic2.state_dict())
         self.agent_optimiser.load_state_dict(
             th.load("{}/agent_opt.th".format(path), map_location=lambda storage, loc: storage))
         self.critic_optimiser.load_state_dict(

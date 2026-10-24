@@ -36,12 +36,12 @@ class ICQLearner:
         match self.args.optim_type.lower():
             case "rmsprop":
                 self.agent_optimiser = RMSprop(params=self.agent_params, lr=self.args.lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
-                self.critic_optimiser = RMSprop(params=self.critic_params, lr=self.args.lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
-                self.mixer_optimiser = RMSprop(params=self.mixer_params, lr=self.args.lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
+                self.critic_optimiser = RMSprop(params=self.critic_params, lr=self.args.critic_lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
+                self.mixer_optimiser = RMSprop(params=self.mixer_params, lr=self.args.critic_lr, alpha=self.args.optim_alpha, eps=self.args.optim_eps, weight_decay=self.args.weight_decay)
             case "adam":
                 self.agent_optimiser = Adam(params=self.agent_params, lr=self.args.lr, weight_decay=self.args.weight_decay)
-                self.critic_optimiser = Adam(params=self.critic_params, lr=self.args.lr, weight_decay=self.args.weight_decay)
-                self.mixer_optimiser = Adam(params=self.mixer_params, lr=self.args.lr, weight_decay=self.args.weight_decay)
+                self.critic_optimiser = Adam(params=self.critic_params, lr=self.args.critic_lr, weight_decay=self.args.weight_decay)
+                self.mixer_optimiser = Adam(params=self.mixer_params, lr=self.args.critic_lr, weight_decay=self.args.weight_decay)
             case _:
                 raise ValueError("Invalid optimiser type", self.args.optim_type)
 
@@ -68,7 +68,7 @@ class ICQLearner:
         actions = batch["actions"][:, :-1]
         terminated = batch["terminated"][:, :-1].float()
         avail_actions = batch["avail_actions"][:, :-1]
-        mask = batch["filled"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
 
         mask = mask.repeat(1, 1, self.n_agents).view(bs, -1, self.n_agents)
@@ -79,23 +79,22 @@ class ICQLearner:
         mac_out = []
         self.mac.init_hidden(bs)
         for t in range(max_t-1):
-            agent_outs = self.mac.forward(batch, t=t)
+            agent_outs = self.mac.forward(batch, t=t, test_mode=True)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1) # (bs, seq_len-1, n_agents, n_actions)
 
-        mac_out[avail_actions == 0] = 0 # 已经是softmax
-        pi = mac_out / mac_out.sum(dim=-1, keepdim=True) # 对动作概率重新归一化
-        pi[avail_actions == 0] = 0
+        mac_out = mac_out.masked_fill(avail_actions == 0, 0) # 已经是softmax
+        pi = mac_out / mac_out.sum(dim=-1, keepdim=True).clamp_min(1e-10) # 对动作概率重新归一化
         pi_taken = th.gather(pi, dim=3, index=actions).squeeze(3)
         # (bs , (T-1) , n_agents,)
         
         pi_taken[mask == 0] = 1.0
         assert not th.isnan(pi_taken).any()
-        log_pi_taken = th.log(pi_taken)
+        log_pi_taken = th.log(pi_taken.clamp_min(1e-10))
         
         q_taken = th.gather(q_vals, dim=3, index=actions).squeeze(3)
 
-        baseline = th.sum(mac_out * q_vals, dim=-1).detach() # (bs, T-1, n_agents)
+        baseline = th.sum(pi * q_vals, dim=-1).detach() # (bs, T-1, n_agents)
 
         coe = self.mixer.k(states)
 
@@ -139,7 +138,7 @@ class ICQLearner:
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"]
         terminated = batch["terminated"][:, :-1].float()
-        mask = batch["filled"][:, :-1].float()
+        mask = batch["filled"][:, :-1].float().clone()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
 
 

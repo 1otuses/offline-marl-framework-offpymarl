@@ -81,9 +81,9 @@ def _load_runtime_dependencies():
 
     if int(np.__version__.split(".", maxsplit=1)[0]) >= 2:
         raise RuntimeError(
-            "This project pins numpy<1.24, but the active environment has "
-            f"numpy=={np.__version__}. Use a compatible conversion environment "
-            "before importing PyTorch/h5py."
+            "OG-MARL conversion requires NumPy 1.x, but the active environment "
+            f"has numpy=={np.__version__}. Use the dedicated conversion "
+            "environment described in README.md."
         )
 
     try:
@@ -98,9 +98,10 @@ def _load_runtime_dependencies():
         from envs import REGISTRY as env_REGISTRY
     except Exception as exc:
         raise RuntimeError(
-            "Failed to import conversion dependencies. Use versions compatible with "
-            "requirements.txt and transform_data.ipynb (notably jax==0.4.28 and "
-            "flashbax==0.1.2)."
+            "Failed to import conversion dependencies. Clone the offpymarl Conda "
+            "environment and install requirements-transform.txt as described in "
+            "README.md. The conversion stack is intentionally isolated from the "
+            "legacy training dependencies."
         ) from exc
 
     return SN(

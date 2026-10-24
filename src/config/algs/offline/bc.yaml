@@ -1,26 +1,26 @@
 # --- BC 具体参数 ---
-
+# offline
 # 使用多项式选择器
-action_selector: "multinomial"
+action_selector: "multinomial" # components/action_selectors.py
 epsilon_start: .5
 epsilon_finish: .01
 epsilon_anneal_time: 50000
 
-runner: "episode"
+runner: "episode" 
 
 buffer_size: 5000
 
 # 使用 BC_Learner 进行训练
 agent_output_type: "pi_logits"
-learner: "bc_learner"
+learner: "bc_learner" # learner/bc_learner.py
 double_q: True
 mixer: 
 
 
 # 智能体类型
-agent: "rnn"
+agent: "rnn" # agents/rnn_agent.py
 
 # mac
-mac: "basic_mac"
+mac: "basic_mac" # controllers/basic_mac.py
 
 name: "bc"

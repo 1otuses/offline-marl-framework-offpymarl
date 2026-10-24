@@ -1,50 +1,69 @@
 env: sc2
 
 env_args:
+  # 达到地图的 episode_limit 后环境始终会结束;此项只决定如何解释“超时”.
+  # False: 把超时视为真实终止;True: 标记为时间截断,runner 会保留 bootstrap(terminated=False).
   continuing_episode: False
-  difficulty: "7"
-  game_version: null
+  difficulty: "7" # SC2 内置敌方 AI 难度;"7" 表示 VeryHard
+  game_version: null # null 表示使用本机可用的最新 SC2 版本;严格复现时可固定版本号
   map_name: "3m"
-  move_amount: 2
-  obs_all_health: True
-  obs_instead_of_state: False
-  obs_last_action: False
-  obs_own_health: True
-  obs_pathing_grid: False
-  obs_terrain_height: False
-  obs_timestep_number: False
-  reward_death_value: 10
-  reward_defeat: 0
-  reward_negative_scale: 0.5
-  reward_only_positive: True
-  reward_scale: True
-  reward_scale_rate: 20
-  reward_sparse: False
-  reward_win: 200
-  replay_dir: ""
-  replay_prefix: ""
-  state_last_action: True
-  state_timestep_number: False
-  step_mul: 8
-  seed: null
-  heuristic_ai: False
-  heuristic_rest: False
-  debug: False
+  move_amount: 2 # 每个移动动作在 SC2 世界坐标中前进的距离
 
-test_greedy: True
-test_nepisode: 32
-test_interval: 500
-log_interval: 500
-runner_log_interval: 500
-learner_log_interval: 500
+  # --- 每个智能体的局部观测 ---
+  obs_all_health: True # 加入视野内友军和敌军的生命值/护盾;开启后 obs_own_health 会被强制开启
+  obs_own_health: True # 加入自身生命值/护盾;obs_all_health=True 时此值实际会被忽略并设为 True
+  obs_instead_of_state: False # True时 用所有局部观测的拼接代替独立的全局 state
+  # 这里控制“可见友军的上一动作”是否进入环境观测;不同于 default.yaml 中控制自身上一动作的同名顶层选项.
+  obs_last_action: False
+  obs_pathing_grid: False # 加入智能体周围 8 个位置是否可通行
+  obs_terrain_height: False # 加入智能体周围 3x3 区域的地形高度
+  obs_timestep_number: False # 加入归一化回合进度 t / episode_limit
+  # obs_agent_id: True
+
+  # --- 奖励 ---
+  reward_death_value: 10 # 击杀敌军奖励；允许负奖励时也作为友军阵亡惩罚的基值
+  reward_defeat: 0 # 战败时的终局奖励，通常应不大于 0
+  reward_negative_scale: 0.5 # 负奖励缩放系数；reward_only_positive=True 时无效
+  reward_only_positive: True # True 时忽略友军受伤/阵亡产生的负奖励
+  reward_scale: True # 是否对环境返回的总奖励做统一缩放
+  # reward_scale=True 时：reward /= (理论最大回合奖励 / reward_scale_rate)。
+  reward_scale_rate: 20
+  # True 时只使用胜负稀疏奖励；其余伤害/击杀奖励参数不再生效，但 reward_scale 仍会继续应用。
+  reward_sparse: False
+  reward_win: 200 # 获胜时的终局奖励（缩放前）
+
+  # --- 回放、全局状态与环境执行 ---
+  replay_dir: "" # 空字符串表示使用 PySC2/SC2 的默认 replay 目录
+  replay_prefix: "" # 空字符串表示使用地图名作为 replay 文件名前缀
+  state_last_action: True # 在 CTDE 的全局 state 中加入所有智能体的上一动作
+  state_timestep_number: False # 在全局 state 中加入归一化回合进度 t / episode_limit
+  # state_pathing_grid: False
+  # state_terrain_height: False
+  # state_last_action: True
+  step_mul: 8 # 每执行一次 MARL 动作，SC2 内部推进 8 个 game steps
+  seed: null # main.py 会用顶层 --seed 覆盖此值
+  heuristic_ai: False # True 时使用 SMAC 内置启发式控制逻辑，而不是学习策略给出的动作
+  heuristic_rest: False # 仅 heuristic_ai=True 时有效：将启发式动作限制在 RL 智能体的可用动作集合内
+  debug: False # 输出详细的观测、state、动作和奖励调试日志
+
+# --- 测试、日志与 checkpoint；offline 模式下 t_env 表示梯度更新次数，而非环境步数 ---
+test_greedy: True # 测试时选择 Q 值最大的合法动作，不进行 epsilon 随机探索
+test_nepisode: 32 # 每个测试点运行的真实环境 episode 数；会调整为 batch_size_run 的整数倍
+test_interval: 500 # 每隔多少次离线梯度更新进行一次真实环境测试
+log_interval: 500 # 每隔多少次离线梯度更新汇总并打印训练统计
+runner_log_interval: 500 # runner 的训练 rollout 日志间隔；纯离线训练中主要由 test_interval 控制测试
+learner_log_interval: 500 # learner 记录 loss、TD error 等训练指标的更新间隔
+# 训练前保存 step 0，随后按此间隔保存，并在 t_max 处保存最终 checkpoint。
 save_model_interval: 10000
-t_max: 40000 # 40000 个训练梯度步
+t_max: 40000 # 离线训练的梯度更新总次数，不是 SC2 环境步数
 
 # 离线数据集，仅用于单任务离线
-offline_data_folder: "dataset"
+offline_data_folder: "dataset" # 数据集根目录
+# 数据路径最深层的可选子目录；为空且当前层没有 h5 时，会自动选择排序后的最后一个子目录。
 offline_bottom_data_path: ""
-offline_data_quality: "expert"
+offline_data_quality: "expert" # 数据质量目录名；也支持用下划线组合多个质量，如 medium_expert
 # offline_max_buffer_size: 4000
-offline_max_buffer_size: 10000
+offline_max_buffer_size: 0 # 最多载入的 episode 总数；小于等于 0 表示不设上限
+# True：合并后随机抽取；False：超过上限时保留合并数据末尾的 episode。
 offline_data_shuffle: False
-offline_data_type: "h5"
+offline_data_type: "h5" # 当前 OfflineBuffer 只实现了 h5，其他值会抛出 NotImplementedError

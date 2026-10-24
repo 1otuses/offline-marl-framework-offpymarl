@@ -1,5 +1,5 @@
 # --- ICQ 具体参数 ---
-
+# offline
 action_selector: "multinomial"
 epsilon_start: .5
 epsilon_finish: .05
@@ -13,6 +13,8 @@ buffer_size: 32
 # off_buffer_size : 70000 # size of the off-policy buffer default: 5000
 batch_size_run: 10 # 10
 batch_size: 16
+offline_batch_size: 16
+grad_norm_clip: 20
 
 
 env_args:
@@ -25,7 +27,7 @@ step: 5 #树回溯图的步数（可根据智能体数量调整）
 
 lr: 0.0005
 critic_lr: 0.0001
-td_lambda: 0.93
+td_lambda: 0.75
 
 # 使用 qmix
 mixing_embed_dim: 32
@@ -33,6 +35,7 @@ hypernet_layers: 1
 
 critic_hidden_dim: 256
 optim_type: "rmsprop"
+# optim_type: "Adam"
 icq_alpha: 0.1
 icq_beta: 1000
 

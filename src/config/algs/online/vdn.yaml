@@ -1,5 +1,5 @@
-# --- QMIX 具体参数 ---
-
+# --- VDN 具体参数 ---
+# online
 # 使用 epsilon 贪婪动作选择器
 action_selector: "epsilon_greedy"
 epsilon_start: 1.0
@@ -15,15 +15,11 @@ target_update_interval_or_tau: 200
 
 # 使用 Q_Learner 进行训练
 agent_output_type: "q"
-learner: "qtran_learner"
+learner: "q_learner"
 double_q: True
-mixer: "qtran_base"
-mixing_embed_dim: 64
-qtran_arch: "qtran_paper"
+mixer: "vdn"
 
-opt_loss: 1
-nopt_min_loss: 0.1
+cal_target: "td_lambda"
+td_lambda: 0.6 # 6h_vs_8z 为 0.3，其他为 0.6
 
-network_size: small
-
-name: "qtran"
+name: "vdn"

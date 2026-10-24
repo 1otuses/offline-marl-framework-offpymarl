@@ -67,13 +67,14 @@ class OfflineBufferH5(): # 单任务
         for final_data_path in self.data_path_list:
             self.h5_paths.extend([os.path.join(final_data_path, f) for f in sorted(os.listdir(final_data_path)) if f.endswith(".h5")])
         print(self.h5_paths)
+        if not self.h5_paths:
+            raise ValueError("No HDF5 datasets found in {}".format(self.data_path_list))
         #self.h5_paths = [os.path.join(self.data_path, f) for f in os.listdir(self.data_path)]
 
-        self.max_buffer_size = 100000000 if max_buffer_size <= 0 else max_buffer_size
+        self.max_buffer_size = max_buffer_size
         self.device = device # 设备实际上无法工作。
         self.shuffle = shuffle
-        max_data_size_per_file = self.max_buffer_size//len(self.h5_paths)
-        dataset = [self._read_data(self.h5_paths[i], max_data_size_per_file, shuffle) for i in range(len(self.h5_paths))]
+        dataset = [self._read_data(path) for path in self.h5_paths]
         self.data = {
             k: np.concatenate([v[k] for v in dataset], axis=0) for k in dataset[0].keys()
         }
@@ -84,19 +85,25 @@ class OfflineBufferH5(): # 单任务
             # 再次洗牌
             shuffled_idx = np.random.choice(self.buffer_size, self.buffer_size, replace=False)
             self.data = {k: v[shuffled_idx] for k, v in self.data.items()}
+        if max_buffer_size > 0 and self.buffer_size > max_buffer_size:
+            self.data = {k: v[:max_buffer_size] if shuffle else v[-max_buffer_size:]
+                         for k, v in self.data.items()}
+            self.buffer_size = max_buffer_size
         
     
     def get_data_path(self, map_name, quality, data_path):
         data_path = os.path.join(self.base_data_folder, self.args.env, map_name, quality, data_path)
         if all([".h5" not in f for f in os.listdir(data_path)]):
             # 自动查找文件夹
-            existing_folders = [f for f in sorted(os.listdir(data_path)) if os.path.isdir(os.path.join(data_path, f))]
+            existing_folders = [f for f in sorted(os.listdir(data_path))
+                                if os.path.isdir(os.path.join(data_path, f))
+                                and any(name.endswith(".h5") for name in os.listdir(os.path.join(data_path, f)))]
             assert len(existing_folders) > 0
             return os.path.join(data_path, existing_folders[-1])
         else:
             return data_path   
 
-    def _read_data(self, h5_path, max_data_size, shuffle):
+    def _read_data(self, h5_path):
         data = {}
         with h5py.File(h5_path, 'r') as f:
             for k in f.keys():
@@ -105,16 +112,6 @@ class OfflineBufferH5(): # 单任务
                     data[k] = added_data
                 else:
                     data[k] = np.concatenate((data[k], added_data), axis=0)
-        if not shuffle and data[list(data.keys())[0]].shape[0] > max_data_size:
-            data = {k: v[-max_data_size:] for k, v in data.items()}
-
-        keys = list(data.keys())
-        original_data_size = data[keys[0]].shape[0]
-        data_size = min(original_data_size, max_data_size)
-
-        if shuffle:
-            shuffled_idx = np.random.choice(original_data_size, data_size, replace=False)
-            data = {k: v[shuffled_idx] for k, v in data.items()}
         return data
 
     @staticmethod
@@ -130,6 +127,21 @@ class OfflineBufferH5(): # 单任务
         sampled_data = {k: th.tensor(v[sampled_ep_idx]) for k, v in self.data.items()}
         if self.args.use_corrected_terminated and "corrected_terminated" in sampled_data:
             sampled_data["terminated"] = sampled_data["corrected_terminated"]
+        else:
+            # 末行是 terminal transition 的数据缺少 bootstrap 帧；补零占位即可，
+            # terminated 会关闭该帧的 bootstrap，最后一次奖励仍参与训练。
+            lengths = sampled_data["filled"].sum(dim=1).reshape(-1).long()
+            rows = th.arange(batch_size)
+            needs_frame = sampled_data["terminated"][rows, lengths - 1, 0].bool()
+            if needs_frame.any():
+                if (lengths[needs_frame] == sampled_data["filled"].shape[1]).any():
+                    sampled_data = {k: th.cat((v, th.zeros_like(v[:, :1])), dim=1)
+                                    for k, v in sampled_data.items()}
+                for value in sampled_data.values():
+                    value[rows[needs_frame], lengths[needs_frame]] = 0
+                sampled_data["filled"][rows[needs_frame], lengths[needs_frame], 0] = 1
+                # 占位帧提供合法 no-op，避免策略/目标网络在全非法动作上归一化。
+                sampled_data["avail_actions"][rows[needs_frame], lengths[needs_frame], :, 0] = 1
         """sampled_data = {}
         for k, v in self.data.items():
             dtype = self.scheme[k].get("dtype", th.float32) if self.scheme is not None and k in self.scheme else th.float32

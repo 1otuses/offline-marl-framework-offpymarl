@@ -1,5 +1,5 @@
 # --- OMAR 具体参数 ---
-
+# offline
 action_selector: "multinomial"
 epsilon_start: .5
 epsilon_finish: .05
@@ -17,7 +17,7 @@ batch_size: 128
 #   state_last_action: False # critic adds last action internally
 
 # 每 {} 个训练步更新一次目标网络
-target_update_interval_or_tau: 200
+target_update_interval_or_tau: 2000
 
 
 lr: 0.001

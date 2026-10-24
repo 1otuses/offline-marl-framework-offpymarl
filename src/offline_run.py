@@ -14,7 +14,7 @@ import json
 from learners import REGISTRY as le_REGISTRY
 from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
-from components.episode_buffer import ReplayBuffer
+from components.episode_buffer import EpisodeBatch
 from components.offline_buffer import OfflineBuffer
 from components.transforms import OneHot
 
@@ -67,32 +67,39 @@ def run(_run, _config, _log):
     logger.setup_sacred(_run)
 
     # 运行并训练
-    run_sequential(args=args, logger=logger)
+    try:
+        run_sequential(args=args, logger=logger)
+    finally:
+        logger.close()
 
     # 完成后清理资源
-    print("Exiting Main")
+    print("退出主程序")
 
-    print("Stopping all threads")
+    print("停止所有线程")
     for t in threading.enumerate():
         if t.name != "MainThread":
             print("Thread {} is alive! Is daemon: {}".format(t.name, t.daemon))
             t.join(timeout=1)
             print("Thread joined")
 
-    print("Exiting script")
+    print("正在退出脚本")
 
-    # 确保框架进程真正退出
-    os._exit(os.EX_OK)
+def evaluate_sequential(args, runner, logger):
 
-def evaluate_sequential(args, runner):
-
-    for _ in range(args.test_nepisode):
+    for _ in range(max(1, args.test_nepisode // args.batch_size_run)):
         runner.run(test_mode=True)
 
     if args.save_replay:
         runner.save_replay()
     
     runner.close_env()
+    metrics = {key: float(values[-1][1]) for key, values in logger.stats.items()
+               if key.startswith("test_") and values}
+    result = {"checkpoint_path": args.checkpoint_path, "load_step": args.load_step,
+              "seed": args.seed, "test_nepisode": args.test_nepisode, "metrics": metrics}
+    with open(os.path.join(args.results_save_dir, "evaluation.json"), "w") as f:
+        json.dump(result, f, indent=2)
+    logger.console_logger.info("Evaluation: {}".format(metrics))
 
 
 def run_sequential(args, logger):
@@ -122,7 +129,10 @@ def run_sequential(args, logger):
         "actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])
     }
 
-    buffer = ReplayBuffer(scheme, groups, args.buffer_size, env_info["episode_limit"] + 1,
+    # buffer = ReplayBuffer(scheme, groups, args.buffer_size, env_info["episode_limit"] + 1,
+    #                       preprocess=preprocess,
+    #                       device="cpu" if args.buffer_cpu_only else args.device)
+    buffer = EpisodeBatch(scheme, groups, 1, 1,
                           preprocess=preprocess,
                           device="cpu" if args.buffer_cpu_only else args.device)
 
@@ -149,7 +159,8 @@ def run_sequential(args, logger):
         learner.load_models(model_path)
 
         if args.evaluate or args.save_replay:
-            evaluate_sequential(args, runner)
+            args.load_step = timestep_to_load
+            evaluate_sequential(args, runner, logger)
             return
 
         if args.continue_training:
@@ -237,6 +248,13 @@ def train_sequential(args, logger, learner, runner, offline_buffer, start_t_env=
         unit="update",
         dynamic_ncols=True,
     )
+    if args.save_model and not args.continue_training:
+        save_path = os.path.join(args.model_save_dir, str(t_env))
+        os.makedirs(save_path, exist_ok=True)
+        logger.console_logger.info("Saving models to {}".format(save_path))
+        learner.save_models(save_path)
+        save_training_state(save_path, t_env, episode, learner)
+
     while t_env < t_max:
         episode_sample = offline_buffer.sample(batch_size_train)
         if episode_sample.device != args.device:
@@ -264,7 +282,7 @@ def train_sequential(args, logger, learner, runner, offline_buffer, start_t_env=
             last_time = time.time()
             last_test_T = t_env
         
-        if args.save_model and (t_env-model_save_time >= args.save_model_interval or model_save_time==0):
+        if args.save_model and t_env - model_save_time >= args.save_model_interval:
             save_path = os.path.join(args.model_save_dir, str(t_env))
             os.makedirs(save_path, exist_ok=True)
             logger.console_logger.info("Saving models to {}".format(save_path))
@@ -284,7 +302,10 @@ def train_sequential(args, logger, learner, runner, offline_buffer, start_t_env=
 
 def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
     if args.behaviour_model_path == "":
-        default_behaviour_model_path = os.path.join("dataset", args.env, args.map_name, args.offline_data_quality, "bc_model")
+        if args.continue_training:
+            default_behaviour_model_path = os.path.join(os.path.dirname(os.path.abspath(args.checkpoint_path)), "behaviour")
+        else:
+            default_behaviour_model_path = os.path.join(args.results_save_dir, "behaviour")
     else:
         default_behaviour_model_path = args.behaviour_model_path
     
@@ -293,18 +314,20 @@ def train_behaviour_sequential(args, logger, learner, runner, offline_buffer):
         learner.load_behaviour_model(default_behaviour_model_path)
         return
     else:
+        if args.continue_training:
+            raise ValueError("Resume requires the original behaviour_model_path: {}".format(default_behaviour_model_path))
         logger.console_logger.info("Beginning training behaviour proxy policy as CFCQL does with {} steps".format(args.behaviour_t_max))
         training_steps = 0
         batch_size_train = args.offline_batch_size
         episode = 0
         last_log_T = - args.log_interval - 1
         behaviour_progress = tqdm(
-            total=max(args.behaviour_t_max + 1, 0),
+            total=max(args.behaviour_t_max, 0),
             desc="Behaviour policy training",
             unit="update",
             dynamic_ncols=True,
         )
-        while training_steps <= args.behaviour_t_max:
+        while training_steps < args.behaviour_t_max:
             episode_sample = offline_buffer.sample(batch_size_train)
             if episode_sample.device != args.device:
                 episode_sample.to(args.device)

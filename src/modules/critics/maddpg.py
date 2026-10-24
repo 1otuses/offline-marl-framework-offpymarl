@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# 确定性策略,Crtic:学一个具体动作的标量Q(s,a)
+# Crtic:学一个具体动作的标量Q(s,a)
 class MADDPGCritic(nn.Module):
     def __init__(self, scheme, args):
         super(MADDPGCritic, self).__init__()
@@ -29,13 +29,13 @@ class MADDPGCritic(nn.Module):
         input_shape = scheme["state"]["vshape"]
         # print(scheme["state"]["vshape"], scheme["obs"]["vshape"], self.n_agents, scheme["actions_one"])
         # 是否添加个体观测
-        if self.args.critic_individual_obs:
+        if self.args.critic_individual_obs: # O_i^t
             input_shape += scheme["obs"]["vshape"]
         
-        if self.args.critic_last_action:
+        if self.args.critic_last_action: # A_i^{t-1}
             input_shape += self.n_actions
         # 智能体 ID
         if self.args.critic_agent_id:
-            input_shape += self.n_agents
+            input_shape += self.n_agents # input_shape = state + obs_i + last_action_i + agent_id
         
         return input_shape + self.n_actions * self.n_agents
